@@ -11,8 +11,9 @@ final class StatusBarController {
 
         if let button = statusItem.button {
             button.image = PanIcon.statusImage(tintHex: currentDotHex)
-            button.action = #selector(StatusBarTarget.performAction)
+            button.action = #selector(StatusBarTarget.performAction(_:))
             button.target = target
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
     }
 
@@ -29,7 +30,15 @@ private final class StatusBarTarget: NSObject {
         self.action = action
     }
 
-    @objc func performAction() {
-        action()
+    @objc func performAction(_ sender: NSStatusBarButton) {
+        if NSApp.currentEvent?.type == .rightMouseUp {
+            let menu = NSMenu()
+            let item = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+            item.target = NSApp
+            menu.addItem(item)
+            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height + 4), in: sender)
+        } else {
+            action()
+        }
     }
 }

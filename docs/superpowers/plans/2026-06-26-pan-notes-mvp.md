@@ -1659,17 +1659,38 @@ struct ShortcutRecorderView: NSViewRepresentable {
 
     func makeNSView(context: Context) -> MASShortcutView {
         let view = MASShortcutView(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
-        view.associatedUserDefaultsKey = defaultsKey
+        view.shortcutValue = storedShortcut()
+        view.shortcutValueChange = { sender in
+            storeShortcut(sender.shortcutValue)
+        }
         return view
     }
 
     func updateNSView(_ nsView: MASShortcutView, context: Context) {
-        if nsView.associatedUserDefaultsKey != defaultsKey {
-            nsView.associatedUserDefaultsKey = defaultsKey
+        nsView.shortcutValue = storedShortcut()
+    }
+
+    private func storedShortcut() -> MASShortcut? {
+        guard let data = UserDefaults.standard.data(forKey: defaultsKey) else {
+            return nil
+        }
+        return try? NSKeyedUnarchiver.unarchivedObject(ofClass: MASShortcut.self, from: data)
+    }
+
+    private func storeShortcut(_ shortcut: MASShortcut?) {
+        guard let shortcut else {
+            UserDefaults.standard.removeObject(forKey: defaultsKey)
+            return
+        }
+
+        if let data = try? NSKeyedArchiver.archivedData(withRootObject: shortcut, requiringSecureCoding: true) {
+            UserDefaults.standard.set(data, forKey: defaultsKey)
         }
     }
 }
 ```
+
+MASShortcut API note: the current SPM build exposes `MASShortcutView.shortcutValue` and `shortcutValueChange`; it does not expose `associatedUserDefaultsKey`.
 
 - [ ] **Step 2: Wire settings into RootView**
 
@@ -1731,6 +1752,8 @@ private func chooseFolder() {
 }
 ```
 
+Implementation note: folder selection should create or load a `DotStore` for the selected directory, update the current `Workspace`, and persist `url.path` to `UserDefaults` under `PanNotesWorkspaceURL`. `AppDelegate.defaultWorkspaceURL()` should prefer this stored path on later launches before falling back to `~/Library/Application Support/PanNotes`.
+
 - [ ] **Step 3: Add status bar quit menu**
 
 Modify `Sources/PanNotesApp/App/StatusBarController.swift` so right-click opens a quit menu while left-click still toggles the window:
@@ -1764,9 +1787,9 @@ private final class StatusBarTarget: NSObject {
 
 - [ ] **Step 4: Run full verification**
 
-Run: `swift test`
+Run: `swift run PanNotesCoreTests`
 
-Expected: all tests pass.
+Expected: output includes `PanNotesCoreTests: 11 passed`.
 
 Run: `swift build`
 
@@ -1787,7 +1810,7 @@ Manual expected results:
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/PanNotesApp
+git add Sources/PanNotesApp docs/superpowers/plans/2026-06-26-pan-notes-mvp.md
 git commit -m "Add settings and final app wiring"
 ```
 

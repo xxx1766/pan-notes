@@ -43,7 +43,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func defaultWorkspaceURL() -> URL {
-        FileManager.default.homeDirectoryForCurrentUser
+        if let path = UserDefaults.standard.string(forKey: "PanNotesWorkspaceURL"), !path.isEmpty {
+            return URL(filePath: path, directoryHint: .isDirectory)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser
             .appending(path: "Library/Application Support/PanNotes", directoryHint: .isDirectory)
     }
 

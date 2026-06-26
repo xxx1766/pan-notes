@@ -1,3 +1,4 @@
+import AppKit
 import PanNotesCore
 import SwiftUI
 
@@ -7,8 +8,9 @@ struct RootView: View {
     @State private var bodyText: String
     @State private var viewMode: ViewMode
     @State private var statusText = "Saved"
+    @State private var showingSettings = false
+    @State private var store: DotStore
 
-    private let store: DotStore
     private let onSelectedDotChanged: @MainActor (Dot) -> Void
 
     init(workspace: Workspace, store: DotStore) {
@@ -20,7 +22,7 @@ struct RootView: View {
         self._selectedDotID = State(initialValue: workspace.manifest.currentDotID)
         self._bodyText = State(initialValue: workspace.bodies[workspace.manifest.currentDotID] ?? "")
         self._viewMode = State(initialValue: workspace.manifest.dots.first?.preferredViewMode ?? .edit)
-        self.store = store
+        self._store = State(initialValue: store)
         self.onSelectedDotChanged = onSelectedDotChanged
     }
 
@@ -55,6 +57,13 @@ struct RootView: View {
                     Text("Preview").tag(ViewMode.preview)
                 }
                 .pickerStyle(.segmented)
+                Button {
+                    showingSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .buttonStyle(.plain)
+                .help("Settings")
                 Spacer()
                 Text(statusText)
                     .foregroundStyle(.secondary)
@@ -62,6 +71,20 @@ struct RootView: View {
             .padding(8)
         }
         .frame(minWidth: 420, minHeight: 420)
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(
+                workspace: $workspace,
+                onChooseFolder: chooseFolder,
+                onSaveManifest: { manifest in
+                    do {
+                        try store.saveManifest(manifest)
+                        statusText = "Settings saved"
+                    } catch {
+                        statusText = "Settings save failed"
+                    }
+                }
+            )
+        }
     }
 
     private func saveCurrentDot() {
@@ -72,5 +95,38 @@ struct RootView: View {
         } catch {
             statusText = "Save failed"
         }
+    }
+
+    private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+
+        if panel.runModal() == .OK, let url = panel.url {
+            let selectedStore = DotStore(rootURL: url)
+            do {
+                workspace = try loadWorkspace(from: selectedStore, rootURL: url)
+                store = selectedStore
+                selectedDotID = workspace.manifest.currentDotID
+                bodyText = workspace.bodies[selectedDotID] ?? ""
+                viewMode = workspace.manifest.dots.first { $0.id == selectedDotID }?.preferredViewMode ?? .edit
+                UserDefaults.standard.set(url.path, forKey: "PanNotesWorkspaceURL")
+                if let dot = workspace.manifest.dots.first(where: { $0.id == selectedDotID }) {
+                    onSelectedDotChanged(dot)
+                }
+                statusText = "Folder selected: \(url.lastPathComponent)"
+            } catch {
+                statusText = "Folder load failed"
+            }
+        }
+    }
+
+    private func loadWorkspace(from store: DotStore, rootURL: URL) throws -> Workspace {
+        let manifestURL = rootURL.appending(path: "manifest.json")
+        if FileManager.default.fileExists(atPath: manifestURL.path) {
+            return try store.load()
+        }
+        return try store.bootstrap(dotCount: workspace.manifest.dots.count)
     }
 }
