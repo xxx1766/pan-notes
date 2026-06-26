@@ -131,6 +131,8 @@ struct RootView: View {
 
             quickKeysMenu
 
+            findMenu
+
             HStack(spacing: 6) {
                 Image(systemName: "textformat.size")
                     .font(.system(size: 11, weight: .medium))
@@ -208,6 +210,43 @@ struct RootView: View {
         .menuStyle(.borderlessButton)
         .frame(width: 26, height: 26)
         .help("Quick Keys")
+    }
+
+    private var findMenu: some View {
+        Menu {
+            Button {
+                PanTextView.performActiveFindAction(.showFindInterface)
+            } label: {
+                Label("Find", systemImage: "magnifyingglass")
+            }
+            .keyboardShortcut("f", modifiers: .command)
+
+            Button {
+                PanTextView.performActiveFindAction(.showReplaceInterface)
+            } label: {
+                Label("Find and Replace", systemImage: "text.magnifyingglass")
+            }
+            .keyboardShortcut("f", modifiers: [.command, .option])
+
+            Button {
+                PanTextView.performActiveFindAction(.nextMatch)
+            } label: {
+                Label("Find Next", systemImage: "chevron.down")
+            }
+            .keyboardShortcut("g", modifiers: .command)
+
+            Button {
+                PanTextView.performActiveFindAction(.previousMatch)
+            } label: {
+                Label("Find Previous", systemImage: "chevron.up")
+            }
+            .keyboardShortcut("g", modifiers: [.command, .shift])
+        } label: {
+            Image(systemName: "magnifyingglass")
+        }
+        .menuStyle(.borderlessButton)
+        .frame(width: 26, height: 26)
+        .help("Find")
     }
 
     private func saveCurrentDot() {

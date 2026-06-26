@@ -60,7 +60,18 @@ struct TextEditorRepresentable: NSViewRepresentable {
         menu.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: ""))
+        menu.addItem(.separator())
+        menu.addItem(Self.findMenuItem("Find", action: .showFindInterface))
+        menu.addItem(Self.findMenuItem("Find and Replace", action: .showReplaceInterface))
+        menu.addItem(Self.findMenuItem("Find Next", action: .nextMatch))
+        menu.addItem(Self.findMenuItem("Find Previous", action: .previousMatch))
         return menu
+    }
+
+    private static func findMenuItem(_ title: String, action: NSTextFinder.Action) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: #selector(NSResponder.performTextFinderAction(_:)), keyEquivalent: "")
+        item.tag = action.rawValue
+        return item
     }
 
     private static func editorFont(size: Double) -> NSFont {
@@ -93,6 +104,23 @@ struct TextEditorRepresentable: NSViewRepresentable {
 }
 
 final class PanTextView: NSTextView {
+    private static weak var activeTextView: PanTextView?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window != nil {
+            Self.activeTextView = self
+        }
+    }
+
+    override func becomeFirstResponder() -> Bool {
+        let becameFirstResponder = super.becomeFirstResponder()
+        if becameFirstResponder {
+            Self.activeTextView = self
+        }
+        return becameFirstResponder
+    }
+
     override func insertNewline(_ sender: Any?) {
         apply(TextCommandProcessor.insertNewline(in: string, selectedRange: selectedRange()))
     }
@@ -106,12 +134,29 @@ final class PanTextView: NSTextView {
     }
 
     override func keyDown(with event: NSEvent) {
-        let commandPressed = event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.command)
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let commandPressed = flags.contains(.command)
         if commandPressed && (event.keyCode == 36 || event.keyCode == 76) {
             toggleSmartBullet(event)
             return
         }
+        if commandPressed && event.charactersIgnoringModifiers?.lowercased() == "f" {
+            if flags.contains(.option) {
+                performFindAction(.showReplaceInterface)
+            } else {
+                performFindAction(.showFindInterface)
+            }
+            return
+        }
+        if commandPressed && event.charactersIgnoringModifiers?.lowercased() == "g" {
+            performFindAction(flags.contains(.shift) ? .previousMatch : .nextMatch)
+            return
+        }
         super.keyDown(with: event)
+    }
+
+    static func performActiveFindAction(_ action: NSTextFinder.Action) {
+        activeTextView?.performFindAction(action)
     }
 
     @objc func insertSmartBullet(_ sender: Any?) {
@@ -144,6 +189,28 @@ final class PanTextView: NSTextView {
 
     @objc func outdentSelectedLines(_ sender: Any?) {
         apply(TextCommandProcessor.outdentSelection(in: string, selectedRange: selectedRange()))
+    }
+
+    @objc func showFind(_ sender: Any?) {
+        performFindAction(.showFindInterface)
+    }
+
+    @objc func showFindAndReplace(_ sender: Any?) {
+        performFindAction(.showReplaceInterface)
+    }
+
+    @objc func findNext(_ sender: Any?) {
+        performFindAction(.nextMatch)
+    }
+
+    @objc func findPrevious(_ sender: Any?) {
+        performFindAction(.previousMatch)
+    }
+
+    private func performFindAction(_ action: NSTextFinder.Action) {
+        let item = NSMenuItem()
+        item.tag = action.rawValue
+        performTextFinderAction(item)
     }
 
     private func apply(_ result: TextEditResult) {
