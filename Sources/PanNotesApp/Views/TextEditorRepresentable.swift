@@ -21,6 +21,7 @@ struct TextEditorRepresentable: NSViewRepresentable {
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
         textView.isContinuousSpellCheckingEnabled = false
+        textView.menu = Self.editMenu()
         scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
         scrollView.drawsBackground = false
@@ -38,6 +39,16 @@ struct TextEditorRepresentable: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator {
         Coordinator(text: $text)
+    }
+
+    private static func editMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: ""))
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: ""))
+        return menu
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
