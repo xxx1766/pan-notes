@@ -39,37 +39,13 @@ struct RootView: View {
                 viewMode = dot.preferredViewMode
                 onSelectedDotChanged(dot)
             }
-            Divider()
-            if viewMode == .edit {
-                TextEditorRepresentable(text: $bodyText)
-                    .onChange(of: bodyText) { _, _ in
-                        saveCurrentDot()
-                    }
-            } else {
-                MarkdownPreviewView(
-                    nodes: MarkdownPreviewModel.nodes(from: bodyText, rules: workspace.manifest.markdownRules)
-                )
-            }
-            Divider()
-            HStack {
-                Picker("", selection: $viewMode) {
-                    Text("Edit").tag(ViewMode.edit)
-                    Text("Preview").tag(ViewMode.preview)
-                }
-                .pickerStyle(.segmented)
-                Button {
-                    showingSettings = true
-                } label: {
-                    Image(systemName: "gearshape")
-                }
-                .buttonStyle(.plain)
-                .help("Settings")
-                Spacer()
-                Text(statusText)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(8)
+            .background(.regularMaterial)
+
+            editorSurface
+
+            bottomBar
         }
+        .background(Color(nsColor: .textBackgroundColor))
         .frame(minWidth: 420, minHeight: 420)
         .sheet(isPresented: $showingSettings) {
             SettingsView(
@@ -85,6 +61,66 @@ struct RootView: View {
                 }
             )
         }
+    }
+
+    private var editorSurface: some View {
+        ZStack(alignment: .topLeading) {
+            if viewMode == .edit {
+                TextEditorRepresentable(text: $bodyText)
+                    .onChange(of: bodyText) { _, _ in
+                        saveCurrentDot()
+                    }
+            } else {
+                MarkdownPreviewView(
+                    nodes: MarkdownPreviewModel.nodes(from: bodyText, rules: workspace.manifest.markdownRules)
+                )
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 6)
+        .padding(.bottom, 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var bottomBar: some View {
+        HStack(spacing: 8) {
+            Button {
+                showingSettings = true
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .buttonStyle(PanelIconButtonStyle())
+            .help("Settings")
+
+            Button {
+                NSApp.terminate(nil)
+            } label: {
+                Image(systemName: "power")
+            }
+            .buttonStyle(PanelIconButtonStyle())
+            .keyboardShortcut("q", modifiers: .command)
+            .help("Quit")
+
+            Spacer(minLength: 12)
+
+            Text(statusText)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            Picker("", selection: $viewMode) {
+                Label("Edit", systemImage: "pencil").tag(ViewMode.edit)
+                Label("Preview", systemImage: "eye").tag(ViewMode.preview)
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .controlSize(.small)
+            .frame(width: 150)
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 7)
+        .padding(.bottom, 10)
+        .background(.regularMaterial)
     }
 
     private func saveCurrentDot() {
@@ -128,5 +164,19 @@ struct RootView: View {
             return try store.load()
         }
         return try store.bootstrap(dotCount: workspace.manifest.dots.count)
+    }
+}
+
+private struct PanelIconButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(.secondary)
+            .frame(width: 26, height: 26)
+            .background(
+                Circle()
+                    .fill(configuration.isPressed ? Color.primary.opacity(0.12) : Color.clear)
+            )
+            .contentShape(Circle())
     }
 }

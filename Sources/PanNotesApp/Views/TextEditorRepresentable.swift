@@ -8,12 +8,24 @@ struct TextEditorRepresentable: NSViewRepresentable {
         let scrollView = NSScrollView()
         let textView = NSTextView()
         textView.delegate = context.coordinator
-        textView.font = .monospacedSystemFont(ofSize: 15, weight: .regular)
+        textView.font = .systemFont(ofSize: 16, weight: .regular)
         textView.string = text
         textView.isRichText = false
         textView.allowsUndo = true
+        textView.drawsBackground = false
+        textView.textColor = .labelColor
+        textView.insertionPointColor = .labelColor
+        textView.textContainerInset = NSSize(width: 0, height: 12)
+        textView.textContainer?.lineFragmentPadding = 0
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.isAutomaticTextReplacementEnabled = false
+        textView.isContinuousSpellCheckingEnabled = false
         scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
+        scrollView.drawsBackground = false
+        scrollView.borderType = .noBorder
+        scrollView.scrollerStyle = .overlay
         return scrollView
     }
 

@@ -8,28 +8,43 @@ struct DotStripView: View {
     let onSelect: (Dot) -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
+            Spacer(minLength: 0)
             ForEach(dots.sorted { $0.displayOrder < $1.displayOrder }) { dot in
                 Button {
                     onSelect(dot)
                 } label: {
-                    Circle()
-                        .fill(color(for: dot))
-                        .frame(
-                            width: selectedDotID == dot.id ? 16 : 12,
-                            height: selectedDotID == dot.id ? 16 : 12
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(Color.primary.opacity(selectedDotID == dot.id ? 0.45 : 0), lineWidth: 2)
-                        )
+                    dotMarker(for: dot)
                 }
                 .buttonStyle(.plain)
                 .help(dot.title)
             }
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(12)
+        .padding(.horizontal, 14)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+    }
+
+    private func dotMarker(for dot: Dot) -> some View {
+        let color = color(for: dot)
+        let isSelected = selectedDotID == dot.id
+
+        return ZStack {
+            Circle()
+                .fill(isSelected ? color.opacity(0.14) : Color.clear)
+                .frame(width: 24, height: 24)
+            Circle()
+                .fill(color)
+                .frame(width: isSelected ? 14 : 10, height: isSelected ? 14 : 10)
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(isSelected ? 0.72 : 0), lineWidth: 1)
+                )
+                .shadow(color: color.opacity(isSelected ? 0.28 : 0), radius: 3, y: 1)
+        }
+        .frame(width: 28, height: 28)
+        .contentShape(Rectangle())
     }
 
     private func color(for dot: Dot) -> Color {
