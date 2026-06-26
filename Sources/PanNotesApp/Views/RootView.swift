@@ -16,12 +16,18 @@ struct RootView: View {
     private static let fontSizeDefaultsKey = "PanNotesFontSize"
     private static let defaultFontSize = 16.0
     private static let fontSizeRange = 12.0...28.0
+    private let onClose: @MainActor () -> Void
 
     init(workspace: Workspace, store: DotStore) {
-        self.init(workspace: workspace, store: store, onSelectedDotChanged: { _ in })
+        self.init(workspace: workspace, store: store, onSelectedDotChanged: { _ in }, onClose: {})
     }
 
-    init(workspace: Workspace, store: DotStore, onSelectedDotChanged: @escaping @MainActor (Dot) -> Void) {
+    init(
+        workspace: Workspace,
+        store: DotStore,
+        onSelectedDotChanged: @escaping @MainActor (Dot) -> Void,
+        onClose: @escaping @MainActor () -> Void = {}
+    ) {
         self._workspace = State(initialValue: workspace)
         self._selectedDotID = State(initialValue: workspace.manifest.currentDotID)
         self._bodyText = State(initialValue: workspace.bodies[workspace.manifest.currentDotID] ?? "")
@@ -29,6 +35,7 @@ struct RootView: View {
         self._store = State(initialValue: store)
         self._fontSize = State(initialValue: Self.savedFontSize())
         self.onSelectedDotChanged = onSelectedDotChanged
+        self.onClose = onClose
     }
 
     var body: some View {
@@ -52,6 +59,18 @@ struct RootView: View {
         }
         .background(Color(nsColor: .textBackgroundColor))
         .frame(minWidth: 420, minHeight: 420)
+        .overlay(alignment: .topTrailing) {
+            Button {
+                onClose()
+            } label: {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(PanelIconButtonStyle())
+            .keyboardShortcut("w", modifiers: .command)
+            .help("Close Panel")
+            .padding(.top, 10)
+            .padding(.trailing, 10)
+        }
         .sheet(isPresented: $showingSettings) {
             SettingsView(
                 workspace: $workspace,
