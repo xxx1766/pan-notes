@@ -3,6 +3,7 @@ let allTests: [TestCase] = manifestTests
     + backupServiceTests
     + conflictManagerTests
     + markdownPreviewModelTests
+    + textCommandProcessorTests
 
 var passed = 0
 for test in allTests {

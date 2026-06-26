@@ -63,6 +63,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         editMenu.addItem(Self.editMenuItem("Paste", action: #selector(NSText.paste(_:)), key: "v"))
         editMenu.addItem(.separator())
         editMenu.addItem(Self.editMenuItem("Select All", action: #selector(NSText.selectAll(_:)), key: "a"))
+        editMenu.addItem(.separator())
+        editMenu.addItem(Self.editMenuItem("Toggle Smart Bullet", action: #selector(PanTextView.toggleSmartBullet(_:)), key: "\r", modifiers: [.command]))
+        editMenu.addItem(Self.editMenuItem("Indent", action: #selector(PanTextView.indentSelectedLines(_:)), key: "]"))
+        editMenu.addItem(Self.editMenuItem("Outdent", action: #selector(PanTextView.outdentSelectedLines(_:)), key: "["))
+        editMenu.addItem(.separator())
+        editMenu.addItem(Self.textFinderMenuItem("Find", action: .showFindInterface, key: "f"))
+        editMenu.addItem(Self.textFinderMenuItem("Find and Replace", action: .showReplaceInterface, key: "f", modifiers: [.command, .option]))
+        editMenu.addItem(Self.textFinderMenuItem("Find Next", action: .nextMatch, key: "g"))
+        editMenu.addItem(Self.textFinderMenuItem("Find Previous", action: .previousMatch, key: "g", modifiers: [.command, .shift]))
 
         NSApp.mainMenu = mainMenu
     }
@@ -76,6 +85,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
         item.keyEquivalentModifierMask = modifiers
         item.target = nil
+        return item
+    }
+
+    private static func textFinderMenuItem(
+        _ title: String,
+        action: NSTextFinder.Action,
+        key: String,
+        modifiers: NSEvent.ModifierFlags = [.command]
+    ) -> NSMenuItem {
+        let item = editMenuItem(
+            title,
+            action: #selector(NSResponder.performTextFinderAction(_:)),
+            key: key,
+            modifiers: modifiers
+        )
+        item.tag = action.rawValue
         return item
     }
 

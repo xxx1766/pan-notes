@@ -4,11 +4,12 @@ import SwiftUI
 struct MarkdownPreviewView: View {
     let nodes: [MarkdownRenderNode]
     let fontSize: Double
+    let onToggleTask: (Int) -> Void
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 11) {
-                ForEach(Array(nodes.enumerated()), id: \.offset) { _, node in
+                ForEach(Array(nodes.enumerated()), id: \.offset) { nodeOffset, node in
                     switch node {
                     case let .heading(level, text):
                         Text(text)
@@ -32,10 +33,15 @@ struct MarkdownPreviewView: View {
                             }
                         }
                     case let .taskList(items):
-                        ForEach(items, id: \.text) { item in
+                        ForEach(Array(items.enumerated()), id: \.offset) { itemOffset, item in
                             HStack {
-                                Image(systemName: item.isComplete ? "checkmark.square" : "square")
-                                    .foregroundStyle(.secondary)
+                                Button {
+                                    onToggleTask(taskOffset(before: nodeOffset) + itemOffset)
+                                } label: {
+                                    Image(systemName: item.isComplete ? "checkmark.square" : "square")
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(.secondary)
                                 Text(item.text)
                                     .font(.system(size: fontSize))
                             }
@@ -73,6 +79,15 @@ struct MarkdownPreviewView: View {
 
     private var codeFontSize: Double {
         max(11, fontSize - 1)
+    }
+
+    private func taskOffset(before nodeOffset: Int) -> Int {
+        nodes.prefix(nodeOffset).reduce(0) { total, node in
+            if case let .taskList(items) = node {
+                return total + items.count
+            }
+            return total
+        }
     }
 
     private func headingFont(level: Int) -> Font {

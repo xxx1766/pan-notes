@@ -11,6 +11,7 @@ struct RootView: View {
     @State private var showingSettings = false
     @State private var store: DotStore
     @State private var fontSize: Double
+    @State private var selectedTextRange = NSRange(location: 0, length: 0)
 
     private let onSelectedDotChanged: @MainActor (Dot) -> Void
     private static let fontSizeDefaultsKey = "PanNotesFontSize"
@@ -48,6 +49,7 @@ struct RootView: View {
                 saveCurrentDot()
                 selectedDotID = dot.id
                 bodyText = workspace.bodies[dot.id] ?? ""
+                selectedTextRange = NSRange(location: 0, length: 0)
                 viewMode = dot.preferredViewMode
                 onSelectedDotChanged(dot)
             }
@@ -90,14 +92,15 @@ struct RootView: View {
     private var editorSurface: some View {
         ZStack(alignment: .topLeading) {
             if viewMode == .edit {
-                TextEditorRepresentable(text: $bodyText, fontSize: fontSize)
+                TextEditorRepresentable(text: $bodyText, selectedRange: $selectedTextRange, fontSize: fontSize)
                     .onChange(of: bodyText) { _, _ in
                         saveCurrentDot()
                     }
             } else {
                 MarkdownPreviewView(
                     nodes: MarkdownPreviewModel.nodes(from: bodyText, rules: workspace.manifest.markdownRules),
-                    fontSize: fontSize
+                    fontSize: fontSize,
+                    onToggleTask: togglePreviewTask
                 )
             }
         }
@@ -125,6 +128,8 @@ struct RootView: View {
             .buttonStyle(PanelIconButtonStyle())
             .keyboardShortcut("q", modifiers: .command)
             .help("Quit")
+
+            quickKeysMenu
 
             HStack(spacing: 6) {
                 Image(systemName: "textformat.size")
@@ -161,6 +166,50 @@ struct RootView: View {
         .background(.regularMaterial)
     }
 
+    private var quickKeysMenu: some View {
+        Menu {
+            Button {
+                applyTextCommand(TextCommandProcessor.insertSmartBullet, status: "Inserted smart bullet")
+            } label: {
+                Label("Smart Bullet", systemImage: "checklist")
+            }
+            .keyboardShortcut("1", modifiers: .command)
+
+            Button {
+                applyTextCommand(TextCommandProcessor.insertBullet, status: "Inserted bullet")
+            } label: {
+                Label("Bullet", systemImage: "list.bullet")
+            }
+            .keyboardShortcut("2", modifiers: .command)
+
+            Button {
+                applyTextCommand(TextCommandProcessor.insertDivider, status: "Inserted divider")
+            } label: {
+                Label("Divider", systemImage: "minus")
+            }
+            .keyboardShortcut("3", modifiers: .command)
+
+            Button {
+                insertDate()
+            } label: {
+                Label("Date", systemImage: "calendar")
+            }
+            .keyboardShortcut("4", modifiers: .command)
+
+            Button {
+                insertTime()
+            } label: {
+                Label("Time", systemImage: "clock")
+            }
+            .keyboardShortcut("5", modifiers: .command)
+        } label: {
+            Image(systemName: "bolt")
+        }
+        .menuStyle(.borderlessButton)
+        .frame(width: 26, height: 26)
+        .help("Quick Keys")
+    }
+
     private func saveCurrentDot() {
         do {
             try store.saveDot(id: selectedDotID, body: bodyText, in: workspace)
@@ -184,6 +233,7 @@ struct RootView: View {
                 store = selectedStore
                 selectedDotID = workspace.manifest.currentDotID
                 bodyText = workspace.bodies[selectedDotID] ?? ""
+                selectedTextRange = NSRange(location: 0, length: 0)
                 viewMode = workspace.manifest.dots.first { $0.id == selectedDotID }?.preferredViewMode ?? .edit
                 UserDefaults.standard.set(url.path, forKey: "PanNotesWorkspaceURL")
                 if let dot = workspace.manifest.dots.first(where: { $0.id == selectedDotID }) {
@@ -211,6 +261,63 @@ struct RootView: View {
         }
         return min(max(stored, fontSizeRange.lowerBound), fontSizeRange.upperBound)
     }
+
+    private func togglePreviewTask(_ taskIndex: Int) {
+        guard let result = TextCommandProcessor.toggleTaskItem(at: taskIndex, in: bodyText) else {
+            statusText = "Task toggle failed"
+            return
+        }
+        applyTextEditResult(result, status: "Task updated")
+    }
+
+    private func applyTextCommand(
+        _ command: (String, NSRange) -> TextEditResult,
+        status: String
+    ) {
+        applyTextEditResult(command(bodyText, selectedTextRange), status: status)
+    }
+
+    private func insertDate() {
+        let date = Self.dateFormatter.string(from: Date())
+        applyTextEditResult(
+            TextCommandProcessor.insertText(date, in: bodyText, selectedRange: selectedTextRange),
+            status: "Inserted date"
+        )
+    }
+
+    private func insertTime() {
+        let time = Self.timeFormatter.string(from: Date())
+        applyTextEditResult(
+            TextCommandProcessor.insertText(time, in: bodyText, selectedRange: selectedTextRange),
+            status: "Inserted time"
+        )
+    }
+
+    private func applyTextEditResult(_ result: TextEditResult, status: String) {
+        bodyText = result.text
+        selectedTextRange = result.selectedRange
+        workspace.bodies[selectedDotID] = result.text
+        do {
+            try store.saveDot(id: selectedDotID, body: result.text, in: workspace)
+            statusText = status
+        } catch {
+            statusText = "Save failed"
+        }
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter
+    }()
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter
+    }()
 }
 
 private struct PanelIconButtonStyle: ButtonStyle {
