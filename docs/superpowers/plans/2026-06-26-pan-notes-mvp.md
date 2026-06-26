@@ -699,75 +699,82 @@ git commit -m "Add dot store file layout"
 Create `Tests/PanNotesCoreTests/BackupServiceTests.swift`:
 
 ```swift
-import XCTest
-@testable import PanNotesCore
+import Foundation
+import PanNotesCore
 
-final class BackupServiceTests: XCTestCase {
-    func testCreateSnapshotWritesManifestThemeAndBodies() throws {
-        let root = try temporaryDirectory()
-        let store = DotStore(rootURL: root)
-        var workspace = try store.bootstrap(dotCount: 1)
-        try store.saveDot(id: "001", body: "saved text", in: workspace)
-        workspace = try store.load()
-        let service = BackupService(rootURL: root)
+let backupServiceTests: [TestCase] = [
+    TestCase("createSnapshotWritesManifestThemeAndBodies", createSnapshotWritesManifestThemeAndBodies)
+]
 
-        let url = try service.createSnapshot(from: workspace, at: Date(timeIntervalSince1970: 60))
-        let snapshot = try service.restoreSnapshot(from: url)
+private func createSnapshotWritesManifestThemeAndBodies() throws {
+    let root = try backupTemporaryDirectory()
+    let store = DotStore(rootURL: root)
+    var workspace = try store.bootstrap(dotCount: 1)
+    try store.saveDot(id: "001", body: "saved text", in: workspace)
+    workspace = try store.load()
+    let service = BackupService(rootURL: root)
 
-        XCTAssertEqual(url.lastPathComponent, "1970-01-01T00-01-00Z.json")
-        XCTAssertEqual(snapshot.manifest.dots.map(\.id), ["001"])
-        XCTAssertEqual(snapshot.bodies["001"], "saved text")
-        XCTAssertEqual(snapshot.theme.variants.count, Theme.defaultTheme.variants.count)
-    }
+    let url = try service.createSnapshot(from: workspace, at: Date(timeIntervalSince1970: 60))
+    let snapshot = try service.restoreSnapshot(from: url)
 
-    private func temporaryDirectory() throws -> URL {
-        let url = FileManager.default.temporaryDirectory
-            .appending(path: "PanNotesBackupTests-\(UUID().uuidString)", directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        return url
-    }
+    try expect(url.lastPathComponent == "1970-01-01T00-01-00Z.json", "backup file name")
+    try expect(snapshot.manifest.dots.map(\.id) == ["001"], "snapshot dot ids")
+    try expect(snapshot.bodies["001"] == "saved text", "snapshot body")
+    try expect(snapshot.theme.variants.count == Theme.defaultTheme.variants.count, "snapshot theme")
+}
+
+private func backupTemporaryDirectory() throws -> URL {
+    let url = FileManager.default.temporaryDirectory
+        .appending(path: "PanNotesBackupTests-\(UUID().uuidString)", directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    return url
 }
 ```
 
 Create `Tests/PanNotesCoreTests/ConflictManagerTests.swift`:
 
 ```swift
-import XCTest
-@testable import PanNotesCore
+import Foundation
+import PanNotesCore
 
-final class ConflictManagerTests: XCTestCase {
-    func testWriteConflictCreatesTimestampedMarkdownCopy() throws {
-        let root = try temporaryDirectory()
-        let manager = ConflictManager(rootURL: root)
+let conflictManagerTests: [TestCase] = [
+    TestCase("writeConflictCreatesTimestampedMarkdownCopy", writeConflictCreatesTimestampedMarkdownCopy)
+]
 
-        let url = try manager.writeConflict(
-            dotID: "002",
-            externalText: "external version",
-            at: Date(timeIntervalSince1970: 120)
-        )
+private func writeConflictCreatesTimestampedMarkdownCopy() throws {
+    let root = try conflictTemporaryDirectory()
+    let manager = ConflictManager(rootURL: root)
 
-        XCTAssertEqual(url.lastPathComponent, "002.conflict-1970-01-01T00-02-00Z.md")
-        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "external version")
-    }
+    let url = try manager.writeConflict(
+        dotID: "002",
+        externalText: "external version",
+        at: Date(timeIntervalSince1970: 120)
+    )
 
-    private func temporaryDirectory() throws -> URL {
-        let url = FileManager.default.temporaryDirectory
-            .appending(path: "PanNotesConflictTests-\(UUID().uuidString)", directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        return url
-    }
+    try expect(url.lastPathComponent == "002.conflict-1970-01-01T00-02-00Z.md", "conflict file name")
+    let body = try String(contentsOf: url, encoding: .utf8)
+    try expect(body == "external version", "conflict body")
 }
+
+private func conflictTemporaryDirectory() throws -> URL {
+    let url = FileManager.default.temporaryDirectory
+        .appending(path: "PanNotesConflictTests-\(UUID().uuidString)", directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    return url
+}
+```
+
+Update `Tests/PanNotesCoreTests/main.swift`:
+
+```swift
+let allTests: [TestCase] = manifestTests + dotStoreTests + backupServiceTests + conflictManagerTests
 ```
 
 - [ ] **Step 2: Run tests to verify failure**
 
-Run: `swift test --filter BackupServiceTests`
+Run: `swift run PanNotesCoreTests`
 
-Expected: failure because `BackupService` does not exist.
-
-Run: `swift test --filter ConflictManagerTests`
-
-Expected: failure because `ConflictManager` does not exist.
+Expected: failure because `BackupService` and `ConflictManager` do not exist.
 
 - [ ] **Step 3: Implement backups and conflicts**
 
@@ -822,6 +829,7 @@ public final class BackupService {
     static func timestamp(for date: Date) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter.string(from: date).replacingOccurrences(of: ":", with: "-")
     }
 }
@@ -853,22 +861,18 @@ public final class ConflictManager {
 
 - [ ] **Step 4: Run tests and commit**
 
-Run: `swift test --filter BackupServiceTests`
+Run: `swift run PanNotesCoreTests`
 
-Expected: pass.
+Expected: output includes `PanNotesCoreTests: 7 passed`.
 
-Run: `swift test --filter ConflictManagerTests`
-
-Expected: pass.
-
-Run: `swift test`
+Run: `swift build`
 
 Expected: pass.
 
 Commit:
 
 ```bash
-git add Sources/PanNotesCore/Backup Sources/PanNotesCore/Sync Tests/PanNotesCoreTests/BackupServiceTests.swift Tests/PanNotesCoreTests/ConflictManagerTests.swift
+git add Sources/PanNotesCore/Backup Sources/PanNotesCore/Sync Tests/PanNotesCoreTests docs/superpowers/plans/2026-06-26-pan-notes-mvp.md
 git commit -m "Add backups and conflict copies"
 ```
 
