@@ -1,4 +1,4 @@
-let allTests: [TestCase] = manifestTests
+let allTests: [TestCase] = manifestTests + dotStoreTests
 
 var passed = 0
 for test in allTests {

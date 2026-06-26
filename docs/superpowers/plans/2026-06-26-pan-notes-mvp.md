@@ -430,61 +430,71 @@ git commit -m "Add core manifest and theme models"
 Create `Tests/PanNotesCoreTests/DotStoreTests.swift`:
 
 ```swift
-import XCTest
-@testable import PanNotesCore
+import Foundation
+import PanNotesCore
 
-final class DotStoreTests: XCTestCase {
-    func testBootstrapCreatesVisibleLayoutAndDotFiles() throws {
-        let root = try temporaryDirectory()
-        let store = DotStore(rootURL: root)
+let dotStoreTests: [TestCase] = [
+    TestCase("bootstrapCreatesVisibleLayoutAndDotFiles", bootstrapCreatesVisibleLayoutAndDotFiles),
+    TestCase("saveDotWritesOnlyMarkdownBody", saveDotWritesOnlyMarkdownBody),
+    TestCase("loadRebuildsManifestWhenManifestIsMissing", loadRebuildsManifestWhenManifestIsMissing)
+]
 
-        let workspace = try store.bootstrap(dotCount: 2)
+private func bootstrapCreatesVisibleLayoutAndDotFiles() throws {
+    let root = try temporaryDirectory()
+    let store = DotStore(rootURL: root)
 
-        XCTAssertEqual(workspace.manifest.dots.map(\.id), ["001", "002"])
-        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appending(path: "manifest.json").path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appending(path: "theme.json").path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appending(path: "dots/001.md").path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appending(path: "dots/002.md").path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appending(path: "backups").path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appending(path: "conflicts").path))
-    }
+    let workspace = try store.bootstrap(dotCount: 2)
 
-    func testSaveDotWritesOnlyMarkdownBody() throws {
-        let root = try temporaryDirectory()
-        let store = DotStore(rootURL: root)
-        let workspace = try store.bootstrap(dotCount: 1)
-
-        try store.saveDot(id: "001", body: "# Hello", in: workspace)
-
-        let body = try String(contentsOf: root.appending(path: "dots/001.md"), encoding: .utf8)
-        XCTAssertEqual(body, "# Hello")
-    }
-
-    func testLoadRebuildsManifestWhenManifestIsMissing() throws {
-        let root = try temporaryDirectory()
-        let store = DotStore(rootURL: root)
-        _ = try store.bootstrap(dotCount: 2)
-        try FileManager.default.removeItem(at: root.appending(path: "manifest.json"))
-
-        let workspace = try store.load()
-
-        XCTAssertEqual(workspace.manifest.dots.map(\.fileName), ["001.md", "002.md"])
-        XCTAssertEqual(workspace.bodies["001"], "")
-        XCTAssertEqual(workspace.bodies["002"], "")
-    }
-
-    private func temporaryDirectory() throws -> URL {
-        let url = FileManager.default.temporaryDirectory
-            .appending(path: "PanNotesTests-\(UUID().uuidString)", directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        return url
-    }
+    try expect(workspace.manifest.dots.map(\.id) == ["001", "002"], "workspace dot ids")
+    try expect(FileManager.default.fileExists(atPath: root.appending(path: "manifest.json").path), "manifest exists")
+    try expect(FileManager.default.fileExists(atPath: root.appending(path: "theme.json").path), "theme exists")
+    try expect(FileManager.default.fileExists(atPath: root.appending(path: "dots/001.md").path), "001.md exists")
+    try expect(FileManager.default.fileExists(atPath: root.appending(path: "dots/002.md").path), "002.md exists")
+    try expect(FileManager.default.fileExists(atPath: root.appending(path: "backups").path), "backups exists")
+    try expect(FileManager.default.fileExists(atPath: root.appending(path: "conflicts").path), "conflicts exists")
 }
+
+private func saveDotWritesOnlyMarkdownBody() throws {
+    let root = try temporaryDirectory()
+    let store = DotStore(rootURL: root)
+    let workspace = try store.bootstrap(dotCount: 1)
+
+    try store.saveDot(id: "001", body: "# Hello", in: workspace)
+
+    let body = try String(contentsOf: root.appending(path: "dots/001.md"), encoding: .utf8)
+    try expect(body == "# Hello", "dot body")
+}
+
+private func loadRebuildsManifestWhenManifestIsMissing() throws {
+    let root = try temporaryDirectory()
+    let store = DotStore(rootURL: root)
+    _ = try store.bootstrap(dotCount: 2)
+    try FileManager.default.removeItem(at: root.appending(path: "manifest.json"))
+
+    let workspace = try store.load()
+
+    try expect(workspace.manifest.dots.map(\.fileName) == ["001.md", "002.md"], "rebuilt dot file names")
+    try expect(workspace.bodies["001"] == "", "rebuilt body 001")
+    try expect(workspace.bodies["002"] == "", "rebuilt body 002")
+}
+
+private func temporaryDirectory() throws -> URL {
+    let url = FileManager.default.temporaryDirectory
+        .appending(path: "PanNotesTests-\(UUID().uuidString)", directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    return url
+}
+```
+
+Update `Tests/PanNotesCoreTests/main.swift`:
+
+```swift
+let allTests: [TestCase] = manifestTests + dotStoreTests
 ```
 
 - [ ] **Step 2: Run tests to verify failure**
 
-Run: `swift test --filter DotStoreTests`
+Run: `swift run PanNotesCoreTests`
 
 Expected: failure because `DotStore` and `AtomicFileWriter` do not exist.
 
@@ -652,18 +662,18 @@ public enum DotStoreError: Error, Equatable {
 
 - [ ] **Step 4: Run tests and commit**
 
-Run: `swift test --filter DotStoreTests`
+Run: `swift run PanNotesCoreTests`
 
-Expected: pass.
+Expected: output includes `PanNotesCoreTests: 5 passed`.
 
-Run: `swift test`
+Run: `swift build`
 
 Expected: pass.
 
 Commit:
 
 ```bash
-git add Sources/PanNotesCore/Storage Tests/PanNotesCoreTests/DotStoreTests.swift
+git add Sources/PanNotesCore/Storage Tests/PanNotesCoreTests docs/superpowers/plans/2026-06-26-pan-notes-mvp.md
 git commit -m "Add dot store file layout"
 ```
 
