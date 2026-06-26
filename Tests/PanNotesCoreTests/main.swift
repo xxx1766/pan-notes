@@ -1,4 +1,8 @@
-let allTests: [TestCase] = manifestTests + dotStoreTests + backupServiceTests + conflictManagerTests
+let allTests: [TestCase] = manifestTests
+    + dotStoreTests
+    + backupServiceTests
+    + conflictManagerTests
+    + markdownPreviewModelTests
 
 var passed = 0
 for test in allTests {

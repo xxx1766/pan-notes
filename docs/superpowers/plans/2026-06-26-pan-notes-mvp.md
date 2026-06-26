@@ -895,50 +895,60 @@ git commit -m "Add backups and conflict copies"
 Create `Tests/PanNotesCoreTests/MarkdownPreviewModelTests.swift`:
 
 ```swift
-import XCTest
-@testable import PanNotesCore
+import PanNotesCore
 
-final class MarkdownPreviewModelTests: XCTestCase {
-    func testDisabledHeadingsRenderAsPlainText() {
-        var rules = MarkdownRules.defaultEnabled
-        rules.headings = false
+let markdownPreviewModelTests: [TestCase] = [
+    TestCase("disabledHeadingsRenderAsPlainText", disabledHeadingsRenderAsPlainText),
+    TestCase("enabledHeadingsRenderAsHeadingNode", enabledHeadingsRenderAsHeadingNode),
+    TestCase("disabledTablesRenderAsPlainTextLines", disabledTablesRenderAsPlainTextLines),
+    TestCase("enabledTaskListsRenderTaskNodes", enabledTaskListsRenderTaskNodes)
+]
 
-        let nodes = MarkdownPreviewModel.nodes(from: "# Title", rules: rules)
+private func disabledHeadingsRenderAsPlainText() throws {
+    var rules = MarkdownRules.defaultEnabled
+    rules.headings = false
 
-        XCTAssertEqual(nodes, [.paragraph("Title")])
-    }
+    let nodes = MarkdownPreviewModel.nodes(from: "# Title", rules: rules)
 
-    func testEnabledHeadingsRenderAsHeadingNode() {
-        let nodes = MarkdownPreviewModel.nodes(from: "# Title", rules: .defaultEnabled)
+    try expect(nodes == [.paragraph("Title")], "disabled headings render paragraph")
+}
 
-        XCTAssertEqual(nodes, [.heading(level: 1, text: "Title")])
-    }
+private func enabledHeadingsRenderAsHeadingNode() throws {
+    let nodes = MarkdownPreviewModel.nodes(from: "# Title", rules: .defaultEnabled)
 
-    func testDisabledTablesRenderAsPlainTextLines() {
-        var rules = MarkdownRules.defaultEnabled
-        rules.tables = false
+    try expect(nodes == [.heading(level: 1, text: "Title")], "enabled headings render heading")
+}
 
-        let source = """
-        | A | B |
-        | - | - |
-        | 1 | 2 |
-        """
-        let nodes = MarkdownPreviewModel.nodes(from: source, rules: rules)
+private func disabledTablesRenderAsPlainTextLines() throws {
+    var rules = MarkdownRules.defaultEnabled
+    rules.tables = false
 
-        XCTAssertEqual(nodes, [.paragraph("| A | B |\n| - | - |\n| 1 | 2 |")])
-    }
+    let source = """
+    | A | B |
+    | - | - |
+    | 1 | 2 |
+    """
+    let nodes = MarkdownPreviewModel.nodes(from: source, rules: rules)
 
-    func testEnabledTaskListsRenderTaskNodes() {
-        let nodes = MarkdownPreviewModel.nodes(from: "- [x] Done\n- [ ] Next", rules: .defaultEnabled)
+    try expect(nodes == [.paragraph("| A | B |\n| - | - |\n| 1 | 2 |")], "disabled tables render paragraph")
+}
 
-        XCTAssertEqual(nodes, [.taskList([.init(text: "Done", isComplete: true), .init(text: "Next", isComplete: false)])])
-    }
+private func enabledTaskListsRenderTaskNodes() throws {
+    let nodes = MarkdownPreviewModel.nodes(from: "- [x] Done\n- [ ] Next", rules: .defaultEnabled)
+
+    try expect(
+        nodes == [.taskList([
+            TaskListItem(text: "Done", isComplete: true),
+            TaskListItem(text: "Next", isComplete: false)
+        ])],
+        "enabled task lists render task nodes"
+    )
 }
 ```
 
 - [ ] **Step 2: Run tests to verify failure**
 
-Run: `swift test --filter MarkdownPreviewModelTests`
+Run: `swift run PanNotesCoreTests`
 
 Expected: failure because `MarkdownPreviewModel` does not exist.
 
@@ -958,7 +968,7 @@ targets: [
         ],
         path: "Sources/PanNotesCore"
     ),
-    .testTarget(
+    .executableTarget(
         name: "PanNotesCoreTests",
         dependencies: ["PanNotesCore"],
         path: "Tests/PanNotesCoreTests"
@@ -975,6 +985,11 @@ import Markdown
 public struct TaskListItem: Equatable, Sendable {
     public var text: String
     public var isComplete: Bool
+
+    public init(text: String, isComplete: Bool) {
+        self.text = text
+        self.isComplete = isComplete
+    }
 }
 
 public enum MarkdownRenderNode: Equatable, Sendable {
@@ -1001,8 +1016,8 @@ public enum MarkdownPreviewModel {
         if let heading = parseHeading(source) {
             return rules.headings ? [.heading(level: heading.level, text: heading.text)] : [.paragraph(heading.text)]
         }
-        let document = Document(parsing: source)
         var collector = PlainTextCollector()
+        let document = Document(parsing: source)
         collector.visit(document)
         let text = collector.text.trimmingCharacters(in: .whitespacesAndNewlines)
         return text.isEmpty ? [] : [.paragraph(text)]
@@ -1041,18 +1056,18 @@ public enum MarkdownPreviewModel {
     }
 }
 
-private final class PlainTextCollector: MarkupWalker {
+private struct PlainTextCollector: MarkupWalker {
     var text = ""
 
-    override func visitText(_ text: Text) {
-        self.text += text.plainText
+    mutating func visitText(_ text: Text) {
+        self.text += text.string
     }
 
-    override func visitSoftBreak(_ softBreak: SoftBreak) {
+    mutating func visitSoftBreak(_ softBreak: SoftBreak) {
         self.text += "\n"
     }
 
-    override func visitLineBreak(_ lineBreak: LineBreak) {
+    mutating func visitLineBreak(_ lineBreak: LineBreak) {
         self.text += "\n"
     }
 }
@@ -1060,18 +1075,18 @@ private final class PlainTextCollector: MarkupWalker {
 
 - [ ] **Step 4: Run tests and commit**
 
-Run: `swift test --filter MarkdownPreviewModelTests`
+Run: `swift run PanNotesCoreTests`
 
 Expected: pass.
 
-Run: `swift test`
+Run: `swift build`
 
 Expected: pass.
 
 Commit:
 
 ```bash
-git add Sources/PanNotesCore/Markdown Tests/PanNotesCoreTests/MarkdownPreviewModelTests.swift
+git add Package.swift Package.resolved Sources/PanNotesCore/Markdown Tests/PanNotesCoreTests docs/superpowers/plans/2026-06-26-pan-notes-mvp.md
 git commit -m "Add markdown preview model"
 ```
 

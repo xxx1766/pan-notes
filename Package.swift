@@ -8,9 +8,15 @@ let package = Package(
         .library(name: "PanNotesCore", targets: ["PanNotesCore"]),
         .executable(name: "PanNotesCoreTests", targets: ["PanNotesCoreTests"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/swiftlang/swift-markdown.git", branch: "main")
+    ],
     targets: [
         .target(
             name: "PanNotesCore",
+            dependencies: [
+                .product(name: "Markdown", package: "swift-markdown")
+            ],
             path: "Sources/PanNotesCore"
         ),
         .executableTarget(
