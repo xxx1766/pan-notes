@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MarkdownPreviewView: View {
     let nodes: [MarkdownRenderNode]
+    let fontSize: Double
 
     var body: some View {
         ScrollView {
@@ -11,11 +12,14 @@ struct MarkdownPreviewView: View {
                     switch node {
                     case let .heading(level, text):
                         Text(text)
-                            .font(level == 1 ? .title2.weight(.semibold) : .headline.weight(.semibold))
+                            .font(headingFont(level: level))
                             .padding(.top, level == 1 ? 3 : 1)
                     case let .paragraph(text):
                         Text(text)
-                            .font(.system(size: 16))
+                            .font(.system(size: fontSize))
+                            .lineSpacing(2)
+                    case let .richParagraph(runs):
+                        richText(from: runs)
                             .lineSpacing(2)
                     case let .bulletList(items):
                         ForEach(items, id: \.self) { item in
@@ -24,7 +28,7 @@ struct MarkdownPreviewView: View {
                                     .font(.system(size: 5, weight: .semibold))
                                     .foregroundStyle(.tertiary)
                                 Text(item)
-                                    .font(.system(size: 16))
+                                    .font(.system(size: fontSize))
                             }
                         }
                     case let .taskList(items):
@@ -33,12 +37,12 @@ struct MarkdownPreviewView: View {
                                 Image(systemName: item.isComplete ? "checkmark.square" : "square")
                                     .foregroundStyle(.secondary)
                                 Text(item.text)
-                                    .font(.system(size: 16))
+                                    .font(.system(size: fontSize))
                             }
                         }
                     case let .codeBlock(_, code):
                         Text(code)
-                            .font(.system(size: 14, design: .monospaced))
+                            .font(.system(size: codeFontSize, design: .monospaced))
                             .textSelection(.enabled)
                             .padding(10)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -50,12 +54,12 @@ struct MarkdownPreviewView: View {
                                 .frame(width: 2)
                             Text(text)
                                 .italic()
-                                .font(.system(size: 16))
+                                .font(.system(size: fontSize))
                                 .foregroundStyle(.secondary)
                         }
                     case let .table(raw):
                         Text(raw)
-                            .font(.system(size: 14, design: .monospaced))
+                            .font(.system(size: codeFontSize, design: .monospaced))
                             .textSelection(.enabled)
                     }
                 }
@@ -65,5 +69,48 @@ struct MarkdownPreviewView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollContentBackground(.hidden)
+    }
+
+    private var codeFontSize: Double {
+        max(11, fontSize - 1)
+    }
+
+    private func headingFont(level: Int) -> Font {
+        let increment: Double
+        switch level {
+        case 1:
+            increment = 11
+        case 2:
+            increment = 8
+        case 3:
+            increment = 5
+        case 4:
+            increment = 3
+        default:
+            increment = 2
+        }
+        return .system(size: fontSize + increment, weight: .semibold)
+    }
+
+    private func richText(from runs: [MarkdownInlineRun]) -> Text {
+        runs.reduce(Text("")) { text, run in
+            text + textRun(run)
+        }
+    }
+
+    private func textRun(_ run: MarkdownInlineRun) -> Text {
+        var text = Text(run.text)
+            .font(
+                run.isCode
+                    ? .system(size: codeFontSize, design: .monospaced)
+                    : .system(size: fontSize, weight: run.isStrong ? .semibold : .regular)
+            )
+        if run.isEmphasized {
+            text = text.italic()
+        }
+        if run.isStrikethrough {
+            text = text.strikethrough()
+        }
+        return text
     }
 }

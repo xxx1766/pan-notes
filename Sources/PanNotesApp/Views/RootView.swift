@@ -10,8 +10,12 @@ struct RootView: View {
     @State private var statusText = "Saved"
     @State private var showingSettings = false
     @State private var store: DotStore
+    @State private var fontSize: Double
 
     private let onSelectedDotChanged: @MainActor (Dot) -> Void
+    private static let fontSizeDefaultsKey = "PanNotesFontSize"
+    private static let defaultFontSize = 16.0
+    private static let fontSizeRange = 12.0...28.0
 
     init(workspace: Workspace, store: DotStore) {
         self.init(workspace: workspace, store: store, onSelectedDotChanged: { _ in })
@@ -23,6 +27,7 @@ struct RootView: View {
         self._bodyText = State(initialValue: workspace.bodies[workspace.manifest.currentDotID] ?? "")
         self._viewMode = State(initialValue: workspace.manifest.dots.first?.preferredViewMode ?? .edit)
         self._store = State(initialValue: store)
+        self._fontSize = State(initialValue: Self.savedFontSize())
         self.onSelectedDotChanged = onSelectedDotChanged
     }
 
@@ -66,13 +71,14 @@ struct RootView: View {
     private var editorSurface: some View {
         ZStack(alignment: .topLeading) {
             if viewMode == .edit {
-                TextEditorRepresentable(text: $bodyText)
+                TextEditorRepresentable(text: $bodyText, fontSize: fontSize)
                     .onChange(of: bodyText) { _, _ in
                         saveCurrentDot()
                     }
             } else {
                 MarkdownPreviewView(
-                    nodes: MarkdownPreviewModel.nodes(from: bodyText, rules: workspace.manifest.markdownRules)
+                    nodes: MarkdownPreviewModel.nodes(from: bodyText, rules: workspace.manifest.markdownRules),
+                    fontSize: fontSize
                 )
             }
         }
@@ -100,6 +106,19 @@ struct RootView: View {
             .buttonStyle(PanelIconButtonStyle())
             .keyboardShortcut("q", modifiers: .command)
             .help("Quit")
+
+            HStack(spacing: 6) {
+                Image(systemName: "textformat.size")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.tertiary)
+                Slider(value: $fontSize, in: Self.fontSizeRange, step: 1)
+                    .controlSize(.mini)
+                    .frame(width: 84)
+                    .onChange(of: fontSize) { _, value in
+                        UserDefaults.standard.set(value, forKey: Self.fontSizeDefaultsKey)
+                    }
+            }
+            .help("Text size")
 
             Spacer(minLength: 12)
 
@@ -164,6 +183,14 @@ struct RootView: View {
             return try store.load()
         }
         return try store.bootstrap(dotCount: workspace.manifest.dots.count)
+    }
+
+    private static func savedFontSize() -> Double {
+        let stored = UserDefaults.standard.double(forKey: fontSizeDefaultsKey)
+        guard stored > 0 else {
+            return defaultFontSize
+        }
+        return min(max(stored, fontSizeRange.lowerBound), fontSizeRange.upperBound)
     }
 }
 

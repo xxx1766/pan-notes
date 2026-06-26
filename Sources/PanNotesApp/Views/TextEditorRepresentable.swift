@@ -3,12 +3,13 @@ import SwiftUI
 
 struct TextEditorRepresentable: NSViewRepresentable {
     @Binding var text: String
+    let fontSize: Double
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
         let textView = NSTextView()
         textView.delegate = context.coordinator
-        textView.font = .systemFont(ofSize: 16, weight: .regular)
+        textView.font = Self.editorFont(size: fontSize)
         textView.string = text
         textView.isRichText = false
         textView.allowsUndo = true
@@ -31,7 +32,11 @@ struct TextEditorRepresentable: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSScrollView, context: Context) {
-        guard let textView = nsView.documentView as? NSTextView, textView.string != text else {
+        guard let textView = nsView.documentView as? NSTextView else {
+            return
+        }
+        textView.font = Self.editorFont(size: fontSize)
+        guard textView.string != text else {
             return
         }
         textView.string = text
@@ -49,6 +54,10 @@ struct TextEditorRepresentable: NSViewRepresentable {
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: ""))
         return menu
+    }
+
+    private static func editorFont(size: Double) -> NSFont {
+        .systemFont(ofSize: size, weight: .regular)
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {

@@ -4,7 +4,9 @@ let markdownPreviewModelTests: [TestCase] = [
     TestCase("disabledHeadingsRenderAsPlainText", disabledHeadingsRenderAsPlainText),
     TestCase("enabledHeadingsRenderAsHeadingNode", enabledHeadingsRenderAsHeadingNode),
     TestCase("disabledTablesRenderAsPlainTextLines", disabledTablesRenderAsPlainTextLines),
-    TestCase("enabledTaskListsRenderTaskNodes", enabledTaskListsRenderTaskNodes)
+    TestCase("enabledTaskListsRenderTaskNodes", enabledTaskListsRenderTaskNodes),
+    TestCase("documentBlocksRenderAsSeparateNodes", documentBlocksRenderAsSeparateNodes),
+    TestCase("strikethroughRendersAsInlineRun", strikethroughRendersAsInlineRun)
 ]
 
 private func disabledHeadingsRenderAsPlainText() throws {
@@ -45,5 +47,40 @@ private func enabledTaskListsRenderTaskNodes() throws {
             TaskListItem(text: "Next", isComplete: false)
         ])],
         "enabled task lists render task nodes"
+    )
+}
+
+private func documentBlocksRenderAsSeparateNodes() throws {
+    let source = """
+    # Title
+
+    First paragraph.
+
+    Second paragraph.
+    """
+
+    let nodes = MarkdownPreviewModel.nodes(from: source, rules: .defaultEnabled)
+
+    try expect(
+        nodes == [
+            .heading(level: 1, text: "Title"),
+            .paragraph("First paragraph."),
+            .paragraph("Second paragraph.")
+        ],
+        "document blocks render as separate nodes"
+    )
+}
+
+private func strikethroughRendersAsInlineRun() throws {
+    let nodes = MarkdownPreviewModel.nodes(from: "keep ~~drop~~", rules: .defaultEnabled)
+
+    try expect(
+        nodes == [
+            .richParagraph([
+                MarkdownInlineRun(text: "keep "),
+                MarkdownInlineRun(text: "drop", isStrikethrough: true)
+            ])
+        ],
+        "strikethrough renders as inline run"
     )
 }
