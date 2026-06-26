@@ -4,9 +4,9 @@
 
 **Goal:** Build the first runnable macOS Pan Notes MVP: a menu bar notes app with color-coded dots, visible Markdown files, thin metadata, edit/preview modes, autosave, backups, and conservative conflict copies.
 
-**Architecture:** Put all data, theme, backup, conflict, and Markdown-rule behavior in a Swift package library that is covered by `swift test`. Put the macOS app shell in a separate executable target using AppKit for menu bar/window behavior and SwiftUI for the editor/settings views. Run the app during development with `swift run PanNotes`.
+**Architecture:** Put all data, theme, backup, conflict, and Markdown-rule behavior in a Swift package library that is covered by `swift run PanNotesCoreTests`. Put the macOS app shell in a separate executable target using AppKit for menu bar/window behavior and SwiftUI for the editor/settings views. Run the app during development with `swift run PanNotes`.
 
-**Tech Stack:** Swift 6-compatible package layout, macOS 14 minimum, AppKit, SwiftUI, XCTest, Apple's Swift Markdown package, MASShortcut through Swift Package Manager.
+**Tech Stack:** Swift 6-compatible package layout, macOS 14 minimum, AppKit, SwiftUI, a self-contained Swift executable test harness, Apple's Swift Markdown package, MASShortcut through Swift Package Manager.
 
 ## Global Constraints
 
@@ -60,6 +60,8 @@ Sources/
     Views/TextEditorRepresentable.swift
 Tests/
   PanNotesCoreTests/
+    main.swift
+    TestSupport.swift
     BackupServiceTests.swift
     ConflictManagerTests.swift
     DotStoreTests.swift
@@ -81,6 +83,8 @@ External package verification already done:
 - MASShortcut documents Swift Package Manager usage at `https://github.com/shpakovski/MASShortcut`.
 - Swift Markdown exposes a `Markdown` library product at `https://github.com/swiftlang/swift-markdown`.
 
+Local toolchain note: this machine has CommandLineTools but no full Xcode, `xctest`, or importable `XCTest`. Swift Testing also required manual CLT framework paths and was not discovered reliably by SwiftPM. Use the `PanNotesCoreTests` executable target for deterministic local tests.
+
 ---
 
 ### Task 1: Swift Package Scaffold and Core Models
@@ -91,6 +95,8 @@ External package verification already done:
 - Create: `Sources/PanNotesCore/Models/Manifest.swift`
 - Create: `Sources/PanNotesCore/Models/Theme.swift`
 - Test: `Tests/PanNotesCoreTests/ManifestTests.swift`
+- Test: `Tests/PanNotesCoreTests/TestSupport.swift`
+- Test: `Tests/PanNotesCoreTests/main.swift`
 
 **Interfaces:**
 - Produces: `Manifest.default(dotCount: Int) -> Manifest`
@@ -100,39 +106,90 @@ External package verification already done:
 
 - [ ] **Step 1: Write the failing model tests**
 
-Create `Tests/PanNotesCoreTests/ManifestTests.swift`:
+Create `Tests/PanNotesCoreTests/TestSupport.swift`:
 
 ```swift
-import XCTest
-@testable import PanNotesCore
+struct TestCase: Sendable {
+    var name: String
+    var run: @Sendable () throws -> Void
 
-final class ManifestTests: XCTestCase {
-    func testDefaultManifestCreatesOrderedDots() {
-        let manifest = Manifest.default(dotCount: 3)
-
-        XCTAssertEqual(manifest.schemaVersion, 1)
-        XCTAssertEqual(manifest.currentDotID, "001")
-        XCTAssertEqual(manifest.dots.map(\.id), ["001", "002", "003"])
-        XCTAssertEqual(manifest.dots.map(\.fileName), ["001.md", "002.md", "003.md"])
-        XCTAssertEqual(manifest.dots.map(\.displayOrder), [0, 1, 2])
-        XCTAssertEqual(manifest.preferences.backupRetentionCount, 100)
-        XCTAssertTrue(manifest.markdownRules.tables)
-        XCTAssertFalse(manifest.markdownRules.footnotes)
+    init(_ name: String, _ run: @escaping @Sendable () throws -> Void) {
+        self.name = name
+        self.run = run
     }
+}
 
-    func testDefaultThemeHasLightAndDarkTokens() {
-        let theme = Theme.defaultTheme
+func expect(_ condition: @autoclosure () -> Bool, _ label: String, file: StaticString = #fileID, line: UInt = #line) throws {
+    if !condition() {
+        throw TestFailure(label: label, file: String(describing: file), line: line)
+    }
+}
 
-        XCTAssertEqual(theme.variants.count, 8)
-        XCTAssertNotNil(theme.variants.first { $0.name == "yellow" }?.light.dot)
-        XCTAssertNotNil(theme.variants.first { $0.name == "yellow" }?.dark.background)
+private struct TestFailure: Error, CustomStringConvertible {
+    var label: String
+    var file: String
+    var line: UInt
+
+    var description: String {
+        "\(file):\(line): expectation failed: \(label)"
     }
 }
 ```
 
+Create `Tests/PanNotesCoreTests/ManifestTests.swift`:
+
+```swift
+import PanNotesCore
+
+let manifestTests: [TestCase] = [
+    TestCase("defaultManifestCreatesOrderedDots", defaultManifestCreatesOrderedDots),
+    TestCase("defaultThemeHasLightAndDarkTokens", defaultThemeHasLightAndDarkTokens)
+]
+
+private func defaultManifestCreatesOrderedDots() throws {
+    let manifest = Manifest.default(dotCount: 3)
+
+    try expect(manifest.schemaVersion == 1, "schemaVersion")
+    try expect(manifest.currentDotID == "001", "currentDotID")
+    try expect(manifest.dots.map(\.id) == ["001", "002", "003"], "dot ids")
+    try expect(manifest.dots.map(\.fileName) == ["001.md", "002.md", "003.md"], "dot file names")
+    try expect(manifest.dots.map(\.displayOrder) == [0, 1, 2], "dot display order")
+    try expect(manifest.preferences.backupRetentionCount == 100, "backup retention")
+    try expect(manifest.markdownRules.tables, "tables enabled")
+    try expect(!manifest.markdownRules.footnotes, "footnotes disabled")
+}
+
+private func defaultThemeHasLightAndDarkTokens() throws {
+    let theme = Theme.defaultTheme
+
+    try expect(theme.variants.count == 8, "theme variant count")
+    try expect(theme.variants.first { $0.name == "yellow" }?.light.dot != nil, "yellow light dot")
+    try expect(theme.variants.first { $0.name == "yellow" }?.dark.background != nil, "yellow dark background")
+}
+```
+
+Create `Tests/PanNotesCoreTests/main.swift`:
+
+```swift
+let allTests: [TestCase] = manifestTests
+
+var passed = 0
+for test in allTests {
+    do {
+        try test.run()
+        passed += 1
+    } catch {
+        print("FAIL \(test.name): \(error)")
+        throw error
+    }
+}
+
+print("PanNotesCoreTests: \(passed) passed")
+```
+
 - [ ] **Step 2: Run the failing tests**
 
-Run: `swift test --filter ManifestTests`
+Run: `swift run PanNotesCoreTests`
 
 Expected: failure because `Package.swift` and `PanNotesCore` do not exist yet.
 
@@ -149,30 +206,14 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "PanNotesCore", targets: ["PanNotesCore"]),
-        .executable(name: "PanNotes", targets: ["PanNotesApp"])
-    ],
-    dependencies: [
-        .package(url: "https://github.com/swiftlang/swift-markdown.git", branch: "main"),
-        .package(url: "https://github.com/shpakovski/MASShortcut.git", branch: "master")
+        .executable(name: "PanNotesCoreTests", targets: ["PanNotesCoreTests"])
     ],
     targets: [
         .target(
             name: "PanNotesCore",
-            dependencies: [
-                .product(name: "Markdown", package: "swift-markdown")
-            ],
             path: "Sources/PanNotesCore"
         ),
         .executableTarget(
-            name: "PanNotesApp",
-            dependencies: [
-                "PanNotesCore",
-                .product(name: "MASShortcut", package: "MASShortcut")
-            ],
-            path: "Sources/PanNotesApp",
-            resources: [.process("Resources")]
-        ),
-        .testTarget(
             name: "PanNotesCoreTests",
             dependencies: ["PanNotesCore"],
             path: "Tests/PanNotesCoreTests"
@@ -350,14 +391,18 @@ public struct Theme: Codable, Equatable, Sendable {
 
 - [ ] **Step 4: Run tests and commit**
 
-Run: `swift test --filter ManifestTests`
+Run: `swift run PanNotesCoreTests`
+
+Expected: output includes `PanNotesCoreTests: 2 passed`.
+
+Run: `swift build`
 
 Expected: pass.
 
 Commit:
 
 ```bash
-git add Package.swift .gitignore Sources/PanNotesCore/Models Tests/PanNotesCoreTests/ManifestTests.swift
+git add Package.swift .gitignore Sources/PanNotesCore/Models Tests/PanNotesCoreTests
 git commit -m "Add core manifest and theme models"
 ```
 
@@ -822,6 +867,7 @@ git commit -m "Add backups and conflict copies"
 ### Task 4: Rule-Aware Markdown Preview Model
 
 **Files:**
+- Modify: `Package.swift`
 - Create: `Sources/PanNotesCore/Markdown/MarkdownPreviewModel.swift`
 - Test: `Tests/PanNotesCoreTests/MarkdownPreviewModelTests.swift`
 
@@ -883,6 +929,28 @@ Run: `swift test --filter MarkdownPreviewModelTests`
 Expected: failure because `MarkdownPreviewModel` does not exist.
 
 - [ ] **Step 3: Implement the preview model**
+
+Modify `Package.swift` so `PanNotesCore` depends on Swift Markdown:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/swiftlang/swift-markdown.git", branch: "main")
+],
+targets: [
+    .target(
+        name: "PanNotesCore",
+        dependencies: [
+            .product(name: "Markdown", package: "swift-markdown")
+        ],
+        path: "Sources/PanNotesCore"
+    ),
+    .testTarget(
+        name: "PanNotesCoreTests",
+        dependencies: ["PanNotesCore"],
+        path: "Tests/PanNotesCoreTests"
+    )
+]
+```
 
 Create `Sources/PanNotesCore/Markdown/MarkdownPreviewModel.swift`:
 
@@ -998,6 +1066,7 @@ git commit -m "Add markdown preview model"
 ### Task 5: macOS Menu Bar App Shell and Editor Window
 
 **Files:**
+- Modify: `Package.swift`
 - Create: `Sources/PanNotesApp/App/main.swift`
 - Create: `Sources/PanNotesApp/App/AppDelegate.swift`
 - Create: `Sources/PanNotesApp/App/StatusBarController.swift`
