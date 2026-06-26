@@ -2,41 +2,60 @@ import PanNotesCore
 import SwiftUI
 
 struct SettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+
     @Binding var workspace: Workspace
     let onChooseFolder: () -> Void
     let onSaveManifest: (Manifest) -> Void
 
     var body: some View {
-        Form {
-            Section("Storage") {
-                Text(workspace.rootURL.path)
-                    .font(.caption)
-                    .textSelection(.enabled)
-                Button("Choose Folder", action: onChooseFolder)
+        VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
+                .help("Close")
             }
-            Section("Shortcut") {
-                ShortcutRecorderView(defaultsKey: "PanNotesGlobalShortcut")
-                    .frame(width: 220, height: 24)
+            .padding(.top, 12)
+            .padding(.horizontal, 12)
+
+            Form {
+                Section("Storage") {
+                    Text(workspace.rootURL.path)
+                        .font(.caption)
+                        .textSelection(.enabled)
+                    Button("Choose Folder", action: onChooseFolder)
+                }
+                Section("Shortcut") {
+                    ShortcutRecorderView(defaultsKey: "PanNotesGlobalShortcut")
+                        .frame(width: 220, height: 24)
+                }
+                Section("Markdown") {
+                    Toggle("Headings", isOn: binding(\.headings))
+                    Toggle("Emphasis", isOn: binding(\.emphasis))
+                    Toggle("Lists", isOn: binding(\.lists))
+                    Toggle("Task Lists", isOn: binding(\.taskLists))
+                    Toggle("Links", isOn: binding(\.links))
+                    Toggle("Inline Code", isOn: binding(\.inlineCode))
+                    Toggle("Code Blocks", isOn: binding(\.codeBlocks))
+                    Toggle("Block Quotes", isOn: binding(\.blockQuotes))
+                    Toggle("Tables", isOn: binding(\.tables))
+                    Toggle("Strikethrough", isOn: binding(\.strikethrough))
+                }
+                Section("Window") {
+                    Toggle("Hide Dock Icon", isOn: preferencesBinding(\.hideDockIcon))
+                    Toggle("Close on Focus Loss", isOn: preferencesBinding(\.closeOnFocusLoss))
+                }
             }
-            Section("Markdown") {
-                Toggle("Headings", isOn: binding(\.headings))
-                Toggle("Emphasis", isOn: binding(\.emphasis))
-                Toggle("Lists", isOn: binding(\.lists))
-                Toggle("Task Lists", isOn: binding(\.taskLists))
-                Toggle("Links", isOn: binding(\.links))
-                Toggle("Inline Code", isOn: binding(\.inlineCode))
-                Toggle("Code Blocks", isOn: binding(\.codeBlocks))
-                Toggle("Block Quotes", isOn: binding(\.blockQuotes))
-                Toggle("Tables", isOn: binding(\.tables))
-                Toggle("Strikethrough", isOn: binding(\.strikethrough))
-            }
-            Section("Window") {
-                Toggle("Hide Dock Icon", isOn: preferencesBinding(\.hideDockIcon))
-                Toggle("Close on Focus Loss", isOn: preferencesBinding(\.closeOnFocusLoss))
-            }
+            .padding(.horizontal)
+            .padding(.bottom)
         }
-        .padding()
-        .frame(width: 360)
+        .frame(width: 380)
     }
 
     private func binding(_ keyPath: WritableKeyPath<MarkdownRules, Bool>) -> Binding<Bool> {
