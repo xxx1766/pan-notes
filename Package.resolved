@@ -1,6 +1,15 @@
 {
-  "originHash" : "96a2be81a8f2cff1eadbc661e98763680ae74ab7cea82e1efe496213d76d2de7",
+  "originHash" : "59972b1ec53a44b0ce37de9bcb5a2bbf1a66e94348d9975b6457156cad27c5d9",
   "pins" : [
+    {
+      "identity" : "masshortcut",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/shpakovski/MASShortcut",
+      "state" : {
+        "branch" : "master",
+        "revision" : "6f2603c6b6cc18f64a799e5d2c9d3bbc467c413a"
+      }
+    },
     {
       "identity" : "swift-cmark",
       "kind" : "remoteSourceControl",

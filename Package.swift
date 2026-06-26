@@ -6,9 +6,11 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "PanNotesCore", targets: ["PanNotesCore"]),
+        .executable(name: "PanNotes", targets: ["PanNotes"]),
         .executable(name: "PanNotesCoreTests", targets: ["PanNotesCoreTests"])
     ],
     dependencies: [
+        .package(url: "https://github.com/shpakovski/MASShortcut", branch: "master"),
         .package(url: "https://github.com/swiftlang/swift-markdown.git", branch: "main")
     ],
     targets: [
@@ -18,6 +20,17 @@ let package = Package(
                 .product(name: "Markdown", package: "swift-markdown")
             ],
             path: "Sources/PanNotesCore"
+        ),
+        .executableTarget(
+            name: "PanNotes",
+            dependencies: [
+                "PanNotesCore",
+                .product(name: "MASShortcut", package: "MASShortcut")
+            ],
+            path: "Sources/PanNotesApp",
+            resources: [
+                .copy("Resources")
+            ]
         ),
         .executableTarget(
             name: "PanNotesCoreTests",

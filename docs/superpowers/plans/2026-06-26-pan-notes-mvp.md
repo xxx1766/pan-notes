@@ -1096,6 +1096,7 @@ git commit -m "Add markdown preview model"
 
 **Files:**
 - Modify: `Package.swift`
+- Modify: `Package.resolved`
 - Create: `Sources/PanNotesApp/App/main.swift`
 - Create: `Sources/PanNotesApp/App/AppDelegate.swift`
 - Create: `Sources/PanNotesApp/App/StatusBarController.swift`
@@ -1126,6 +1127,28 @@ cp /Users/annebrown/Downloads/pan.svg Sources/PanNotesApp/Resources/pan.svg
 Expected: `Sources/PanNotesApp/Resources/pan.svg` exists and is tracked by git.
 
 - [ ] **Step 2: Add the app entry point**
+
+Modify `Package.swift` so the package exposes the app executable, copies app resources, and depends on MASShortcut:
+
+```swift
+.executable(name: "PanNotes", targets: ["PanNotes"])
+
+.package(url: "https://github.com/shpakovski/MASShortcut", branch: "master")
+
+.executableTarget(
+    name: "PanNotes",
+    dependencies: [
+        "PanNotesCore",
+        .product(name: "MASShortcut", package: "MASShortcut")
+    ],
+    path: "Sources/PanNotesApp",
+    resources: [
+        .copy("Resources")
+    ]
+)
+```
+
+Swift 6 build note: AppKit and SwiftUI controller types in this task should be `@MainActor`. MASShortcut default shortcut seeding should use `MASShortcutBinder.shared().registerDefaultShortcuts(...)`; the current Swift import exposes `MASShortcut(keyCode: Int, modifierFlags: NSEvent.ModifierFlags)` and does not expose `dictionaryRepresentation`.
 
 Create `Sources/PanNotesApp/App/main.swift`:
 
@@ -1425,6 +1448,8 @@ struct DotStripView: View {
 }
 ```
 
+Implementation note: pass `Theme` into `DotStripView` and render each dot from its semantic theme token instead of using a single accent color.
+
 Create `Sources/PanNotesApp/Views/TextEditorRepresentable.swift`:
 
 ```swift
@@ -1522,6 +1547,10 @@ Run: `swift build`
 
 Expected: build succeeds.
 
+Run: `swift run PanNotesCoreTests`
+
+Expected: output includes `PanNotesCoreTests: 11 passed`.
+
 Run: `swift run PanNotes`
 
 Expected: a menu bar item appears. Clicking it opens a floating Pan Notes window. Switching dots changes the selected dot. Typing text writes to `~/Library/Application Support/PanNotes/dots/001.md`. Preview mode renders headings and task lists.
@@ -1531,7 +1560,7 @@ Stop the running app with `Ctrl-C` from the terminal.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/PanNotesApp
+git add Package.swift Package.resolved Sources/PanNotesApp docs/superpowers/plans/2026-06-26-pan-notes-mvp.md
 git commit -m "Add macOS menu bar app shell"
 ```
 
