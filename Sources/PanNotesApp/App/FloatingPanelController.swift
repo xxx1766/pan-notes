@@ -40,9 +40,13 @@ final class FloatingPanelController {
         if panel.isVisible {
             panel.orderOut(nil)
         } else {
-            panel.center()
-            panel.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            show()
         }
+    }
+
+    func show() {
+        panel.center()
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 }

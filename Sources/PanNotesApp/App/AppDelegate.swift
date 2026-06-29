@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.shortcutController = ShortcutController(defaultsKey: "PanNotesGlobalShortcut") { [weak self] in
             self?.toggleWindow()
         }
+        self.panelController?.show()
     }
 
     func toggleWindow() {
