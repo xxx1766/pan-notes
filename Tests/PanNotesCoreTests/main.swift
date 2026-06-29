@@ -4,6 +4,7 @@ let allTests: [TestCase] = manifestTests
     + conflictManagerTests
     + markdownPreviewModelTests
     + textCommandProcessorTests
+    + workspaceStartupLoaderTests
 
 var passed = 0
 for test in allTests {

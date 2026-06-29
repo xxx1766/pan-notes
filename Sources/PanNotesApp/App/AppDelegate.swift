@@ -12,9 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         configureMainMenu()
 
-        let root = defaultWorkspaceURL()
-        let store = DotStore(rootURL: root)
-        let workspace = loadInitialWorkspace(from: store, rootURL: root)
+        let workspace = loadInitialWorkspace()
+        let store = DotStore(rootURL: workspace.rootURL)
 
         self.store = store
         self.workspace = workspace
@@ -105,20 +104,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return item
     }
 
-    private func loadInitialWorkspace(from store: DotStore, rootURL: URL) -> Workspace {
-        let manifestURL = rootURL.appending(path: "manifest.json")
-        if FileManager.default.fileExists(atPath: manifestURL.path), let workspace = try? store.load() {
-            return workspace
-        }
-        return try! store.bootstrap(dotCount: 7)
-    }
-
-    private func defaultWorkspaceURL() -> URL {
-        if let path = UserDefaults.standard.string(forKey: "PanNotesWorkspaceURL"), !path.isEmpty {
-            return URL(filePath: path, directoryHint: .isDirectory)
-        }
-        return FileManager.default.homeDirectoryForCurrentUser
-            .appending(path: "Library/Application Support/PanNotes", directoryHint: .isDirectory)
+    private func loadInitialWorkspace() -> Workspace {
+        let loader = WorkspaceStartupLoader(
+            homeDirectory: FileManager.default.homeDirectoryForCurrentUser,
+            savedWorkspacePath: UserDefaults.standard.string(forKey: "PanNotesWorkspaceURL"),
+            dotCount: 7
+        )
+        return try! loader.load().workspace
     }
 
     private func dotHex(for dot: Dot, in workspace: Workspace) -> String {
