@@ -20,7 +20,6 @@ rm -rf "$APP_PATH" "$DMG_ROOT" "$DMG_PATH"
 mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources" "$DMG_ROOT"
 
 cp "$BUILD_DIR/$EXECUTABLE_NAME" "$APP_PATH/Contents/MacOS/$EXECUTABLE_NAME"
-cp -R "$BUILD_DIR/PanNotes_PanNotes.bundle" "$APP_PATH/Contents/Resources/PanNotes_PanNotes.bundle"
 cp -R "$BUILD_DIR/MASShortcut_MASShortcut.bundle" "$APP_PATH/Contents/Resources/MASShortcut_MASShortcut.bundle"
 cp "$ROOT_DIR/Sources/PanNotesApp/Resources/pan.svg" "$APP_PATH/Contents/Resources/pan.svg"
 

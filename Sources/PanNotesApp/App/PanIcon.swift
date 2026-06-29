@@ -10,7 +10,7 @@ enum PanIcon {
         defer { image.unlockFocus() }
 
         let rect = NSRect(origin: .zero, size: size)
-        let base = Bundle.module.url(forResource: "pan", withExtension: "svg").flatMap(NSImage.init(contentsOf:))
+        let base = iconImage()
             ?? NSImage(systemSymbolName: "pencil", accessibilityDescription: "Pan Notes")
         base?.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
         NSColor(hex: tintHex).setFill()
@@ -18,6 +18,18 @@ enum PanIcon {
         image.isTemplate = false
 
         return image
+    }
+
+    private static func iconImage() -> NSImage? {
+        let appResourceURL = Bundle.main.url(forResource: "pan", withExtension: "svg")
+        let sourceResourceURL = URL(filePath: FileManager.default.currentDirectoryPath)
+            .appending(path: "Sources/PanNotesApp/Resources/pan.svg")
+
+        return [appResourceURL, sourceResourceURL]
+            .compactMap { $0 }
+            .lazy
+            .compactMap(NSImage.init(contentsOf:))
+            .first
     }
 }
 

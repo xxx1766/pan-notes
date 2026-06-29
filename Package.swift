@@ -28,9 +28,7 @@ let package = Package(
                 .product(name: "MASShortcut", package: "MASShortcut")
             ],
             path: "Sources/PanNotesApp",
-            resources: [
-                .copy("Resources")
-            ]
+            exclude: ["Resources"]
         ),
         .executableTarget(
             name: "PanNotesCoreTests",
