@@ -260,6 +260,8 @@ struct RootView: View {
     }
 
     private func chooseFolder() {
+        saveCurrentDot()
+
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -268,7 +270,8 @@ struct RootView: View {
         if panel.runModal() == .OK, let url = panel.url {
             let selectedStore = DotStore(rootURL: url)
             do {
-                workspace = try loadWorkspace(from: selectedStore, rootURL: url)
+                let result = try loadOrMigrateWorkspace(from: selectedStore)
+                workspace = result.workspace
                 store = selectedStore
                 selectedDotID = workspace.manifest.currentDotID
                 bodyText = workspace.bodies[selectedDotID] ?? ""
@@ -278,19 +281,22 @@ struct RootView: View {
                 if let dot = workspace.manifest.dots.first(where: { $0.id == selectedDotID }) {
                     onSelectedDotChanged(dot)
                 }
-                statusText = "Folder selected: \(url.lastPathComponent)"
+                statusText = result.migrated
+                    ? "Copied notes to \(url.lastPathComponent)"
+                    : "Folder selected: \(url.lastPathComponent)"
             } catch {
                 statusText = "Folder load failed"
             }
         }
     }
 
-    private func loadWorkspace(from store: DotStore, rootURL: URL) throws -> Workspace {
-        let manifestURL = rootURL.appending(path: "manifest.json")
-        if FileManager.default.fileExists(atPath: manifestURL.path) {
-            return try store.load()
+    private func loadOrMigrateWorkspace(from store: DotStore) throws -> (workspace: Workspace, migrated: Bool) {
+        if try store.hasWorkspaceData() {
+            return (try store.load(), false)
         }
-        return try store.bootstrap(dotCount: workspace.manifest.dots.count)
+
+        try store.saveWorkspace(workspace)
+        return (try store.load(), true)
     }
 
     private static func savedFontSize() -> Double {

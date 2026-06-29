@@ -91,12 +91,39 @@ public final class DotStore {
         try writer.write(data, to: rootURL.appending(path: "theme.json"))
     }
 
+    public func saveWorkspace(_ workspace: Workspace) throws {
+        try createDirectories()
+        try saveManifest(workspace.manifest)
+        try saveTheme(workspace.theme)
+
+        for dot in workspace.manifest.dots {
+            try writer.write(Data((workspace.bodies[dot.id] ?? "").utf8), to: dotURL(fileName: dot.fileName))
+        }
+    }
+
     public func saveDot(id: String, body: String, in workspace: Workspace) throws {
         guard let dot = workspace.manifest.dots.first(where: { $0.id == id }) else {
             throw DotStoreError.unknownDot(id)
         }
 
         try writer.write(Data(body.utf8), to: dotURL(fileName: dot.fileName))
+    }
+
+    public func hasWorkspaceData() throws -> Bool {
+        if FileManager.default.fileExists(atPath: rootURL.appending(path: "manifest.json").path) {
+            return true
+        }
+
+        let dotsURL = rootURL.appending(path: "dots")
+        guard FileManager.default.fileExists(atPath: dotsURL.path) else {
+            return false
+        }
+
+        return try FileManager.default.contentsOfDirectory(
+            at: dotsURL,
+            includingPropertiesForKeys: nil
+        )
+        .contains { $0.pathExtension == "md" }
     }
 
     private func createDirectories() throws {

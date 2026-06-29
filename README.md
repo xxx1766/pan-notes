@@ -20,7 +20,7 @@ It is built for personal use: seven color-coded dots, visible Markdown files on 
 
 ## Install
 
-Download the latest `PanNotes-0.1.0.dmg` from GitHub Releases, open it, and drag `Pan Notes.app` into `Applications`.
+Download the latest `PanNotes-0.2.0.dmg` from GitHub Releases, open it, and drag `Pan Notes.app` into `Applications`.
 
 This is an ad-hoc signed personal build, not a notarized Developer ID release. On macOS, you may need to right-click the app and choose `Open`, or approve it in `System Settings > Privacy & Security`.
 
@@ -61,7 +61,9 @@ backups/
 conflicts/
 ```
 
-To sync notes, choose an iCloud Drive folder, Tencent Cloud Drive folder, or another synced folder in Settings. The notes remain ordinary Markdown files.
+To sync notes, choose an iCloud Drive folder, Tencent Cloud Drive folder, or another synced folder in Settings. On the first Mac, choosing an empty synced folder copies the current Pan Notes workspace there and switches to it. On another Mac, choose the same synced folder after the cloud provider has downloaded `manifest.json` and `dots/*.md`.
+
+Pan Notes does not run its own sync server. The notes remain ordinary Markdown files and sync through the folder provider you choose.
 
 ## Build From Source
 
