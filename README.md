@@ -22,7 +22,15 @@ It is built for personal use: seven color-coded dots, visible Markdown files on 
 
 Download the latest `PanNotes-0.1.0.dmg` from GitHub Releases, open it, and drag `Pan Notes.app` into `Applications`.
 
-This is an unsigned personal build. On macOS, you may need to right-click the app and choose `Open`, or approve it in `System Settings > Privacy & Security`.
+This is an ad-hoc signed personal build, not a notarized Developer ID release. On macOS, you may need to right-click the app and choose `Open`, or approve it in `System Settings > Privacy & Security`.
+
+If macOS says the app is damaged after downloading it from GitHub, drag `Pan Notes.app` into `Applications`, then run:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Pan Notes.app"
+```
+
+A warning-free public release requires signing with an Apple Developer ID certificate and notarizing the DMG with Apple.
 
 Pan Notes requires macOS 14 or newer.
 

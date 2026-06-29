@@ -20,8 +20,8 @@ rm -rf "$APP_PATH" "$DMG_ROOT" "$DMG_PATH"
 mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources" "$DMG_ROOT"
 
 cp "$BUILD_DIR/$EXECUTABLE_NAME" "$APP_PATH/Contents/MacOS/$EXECUTABLE_NAME"
-cp -R "$BUILD_DIR/PanNotes_PanNotes.bundle" "$APP_PATH/PanNotes_PanNotes.bundle"
-cp -R "$BUILD_DIR/MASShortcut_MASShortcut.bundle" "$APP_PATH/MASShortcut_MASShortcut.bundle"
+cp -R "$BUILD_DIR/PanNotes_PanNotes.bundle" "$APP_PATH/Contents/Resources/PanNotes_PanNotes.bundle"
+cp -R "$BUILD_DIR/MASShortcut_MASShortcut.bundle" "$APP_PATH/Contents/Resources/MASShortcut_MASShortcut.bundle"
 cp "$ROOT_DIR/Sources/PanNotesApp/Resources/pan.svg" "$APP_PATH/Contents/Resources/pan.svg"
 
 cat > "$APP_PATH/Contents/Info.plist" <<PLIST
@@ -56,6 +56,9 @@ cat > "$APP_PATH/Contents/Info.plist" <<PLIST
 </dict>
 </plist>
 PLIST
+
+codesign --force --deep --sign - "$APP_PATH"
+codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
 cp -R "$APP_PATH" "$DMG_ROOT/$APP_NAME.app"
 ln -s /Applications "$DMG_ROOT/Applications"
