@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 APP_NAME="Pan Notes"
 EXECUTABLE_NAME="PanNotes"
 BUNDLE_ID="dev.xuqingru.pannotes"
-VERSION="0.3.0"
+VERSION="0.3.1"
 BUILD_CONFIG="release"
 BUILD_DIR="$ROOT_DIR/.build/arm64-apple-macosx/$BUILD_CONFIG"
 DIST_DIR="$ROOT_DIR/dist"
@@ -22,6 +22,7 @@ mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources" "$DMG_ROOT"
 cp "$BUILD_DIR/$EXECUTABLE_NAME" "$APP_PATH/Contents/MacOS/$EXECUTABLE_NAME"
 cp -R "$BUILD_DIR/MASShortcut_MASShortcut.bundle" "$APP_PATH/Contents/Resources/MASShortcut_MASShortcut.bundle"
 cp "$ROOT_DIR/Sources/PanNotesApp/Resources/pan.svg" "$APP_PATH/Contents/Resources/pan.svg"
+cp "$ROOT_DIR/Sources/PanNotesApp/Resources/pan.png" "$APP_PATH/Contents/Resources/pan.png"
 
 cat > "$APP_PATH/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -36,6 +37,8 @@ cat > "$APP_PATH/Contents/Info.plist" <<PLIST
   <string>$EXECUTABLE_NAME</string>
   <key>CFBundleIdentifier</key>
   <string>$BUNDLE_ID</string>
+  <key>CFBundleIconFile</key>
+  <string>pan.png</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
@@ -56,6 +59,8 @@ cat > "$APP_PATH/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
+test -f "$APP_PATH/Contents/Resources/pan.png"
+test "$(plutil -extract CFBundleIconFile raw -o - "$APP_PATH/Contents/Info.plist")" = "pan.png"
 codesign --force --deep --sign - "$APP_PATH"
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
