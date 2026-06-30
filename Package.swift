@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "PanNotes",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v14), .iOS(.v17)],
     products: [
         .library(name: "PanNotesCore", targets: ["PanNotesCore"]),
         .executable(name: "PanNotes", targets: ["PanNotes"]),
