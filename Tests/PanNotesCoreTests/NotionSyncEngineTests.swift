@@ -6,6 +6,7 @@ let notionSyncEngineTests: [TestCase] = [
     TestCase("notionSyncEngineDeletesManagedBlocksBeforeAppendingPush", notionSyncEngineDeletesManagedBlocksBeforeAppendingPush),
     TestCase("notionSyncEnginePullsNotionOnlyChanges", notionSyncEnginePullsNotionOnlyChanges),
     TestCase("notionSyncEngineWritesConflictWhenBothSidesChanged", notionSyncEngineWritesConflictWhenBothSidesChanged),
+    TestCase("notionSyncEnginePreservesLocalConflictWhenRequested", notionSyncEnginePreservesLocalConflictWhenRequested),
     TestCase("notionSyncEngineSetupReusesExistingPageMappings", notionSyncEngineSetupReusesExistingPageMappings)
 ]
 
@@ -121,6 +122,46 @@ private func notionSyncEngineWritesConflictWhenBothSidesChanged() async throws {
     try expect(result.conflictedDotIDs == ["001"], "both-changed conflict is reported")
     try expect(loaded.bodies["001"] == "Remote", "Notion wins same-dot conflict")
     try expect(conflictText == "Local", "local conflict copy is preserved")
+}
+
+private func notionSyncEnginePreservesLocalConflictWhenRequested() async throws {
+    let root = try notionSyncEngineTemporaryDirectory()
+    let store = DotStore(rootURL: root)
+    var workspace = try store.bootstrap(dotCount: 1)
+    try store.saveDot(id: "001", body: "Local", in: workspace)
+    workspace = try store.load()
+    try makeConfiguredState(root: root, dotID: "001", pageID: "page-001", local: "Base", notion: "Base")
+    let client = FakeNotionClient(pageBlocks: [
+        "page-001": NotionMarkdownConverter.blocks(from: "Remote", dotID: "001")
+    ])
+    let engine = NotionSyncEngine(
+        client: client,
+        stateStore: NotionSyncStateStore(rootURL: root),
+        dotStore: store,
+        conflictManager: ConflictManager(rootURL: root),
+        now: { Date(timeIntervalSince1970: 2_000) }
+    )
+
+    let result = try await engine.sync(workspace: workspace, conflictResolution: .preserveLocal)
+    let loaded = try store.load()
+    let configuration = try NotionSyncStateStore(rootURL: root).load()
+    let conflicts = try FileManager.default.contentsOfDirectory(
+        at: root.appending(path: "conflicts"),
+        includingPropertiesForKeys: nil
+    )
+    let conflictText = try String(contentsOf: conflicts[0], encoding: .utf8)
+
+    try expect(result.conflictedDotIDs == ["001"], "both-changed conflict is reported")
+    try expect(loaded.bodies["001"] == "Local", "local dot remains unchanged")
+    try expect(conflictText == "Remote", "remote conflict copy is preserved")
+    try expect(
+        configuration.dotPages["001"]?.lastSyncedLocalHash == NotionContentHash.hash("Base"),
+        "preserved conflict keeps previous local sync hash"
+    )
+    try expect(
+        configuration.dotPages["001"]?.lastSyncedNotionHash == NotionContentHash.hash("Base"),
+        "preserved conflict keeps previous Notion sync hash"
+    )
 }
 
 private func notionSyncEngineSetupReusesExistingPageMappings() async throws {

@@ -27,6 +27,11 @@ public struct NotionSyncResult: Equatable, Sendable {
     }
 }
 
+public enum NotionConflictResolution: Equatable, Sendable {
+    case notionWins
+    case preserveLocal
+}
+
 public enum NotionSyncError: Error, Equatable, LocalizedError {
     case disabled
     case missingParentPageID
@@ -86,7 +91,10 @@ public final class NotionSyncEngine: @unchecked Sendable {
         return configuration
     }
 
-    public func sync(workspace: Workspace) async throws -> NotionSyncResult {
+    public func sync(
+        workspace: Workspace,
+        conflictResolution: NotionConflictResolution = .notionWins
+    ) async throws -> NotionSyncResult {
         var configuration = try stateStore.load()
         guard configuration.isEnabled else {
             throw NotionSyncError.disabled
@@ -113,9 +121,14 @@ public final class NotionSyncEngine: @unchecked Sendable {
             let remoteChanged = remoteHash != pageState.lastSyncedNotionHash
 
             if localChanged && remoteChanged && localHash != remoteHash {
-                _ = try conflictManager.writeConflict(dotID: dot.id, externalText: localText, at: now())
-                try dotStore.saveDot(id: dot.id, body: remoteText, in: workspace)
-                pageState = pageState.synced(localHash: remoteHash, notionHash: remoteHash, at: now())
+                switch conflictResolution {
+                case .notionWins:
+                    _ = try conflictManager.writeConflict(dotID: dot.id, externalText: localText, at: now())
+                    try dotStore.saveDot(id: dot.id, body: remoteText, in: workspace)
+                    pageState = pageState.synced(localHash: remoteHash, notionHash: remoteHash, at: now())
+                case .preserveLocal:
+                    _ = try conflictManager.writeConflict(dotID: dot.id, externalText: remoteText, at: now())
+                }
                 conflictedDotIDs.append(dot.id)
             } else if localChanged {
                 try await replaceManagedBlocks(

@@ -20,7 +20,7 @@ It is built for personal use: seven color-coded dots, visible Markdown files on 
 
 ## Install
 
-Download the latest `PanNotes-0.3.1.dmg` from GitHub Releases, open it, and drag `Pan Notes.app` into `Applications`.
+Download the latest `PanNotes-0.4.6.dmg` from GitHub Releases, open it, and drag `Pan Notes.app` into `Applications`.
 
 This is an ad-hoc signed personal build, not a notarized Developer ID release. On macOS, you may need to right-click the app and choose `Open`, or approve it in `System Settings > Privacy & Security`.
 

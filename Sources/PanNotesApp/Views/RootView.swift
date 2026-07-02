@@ -15,6 +15,7 @@ struct RootView: View {
     @State private var notionConfiguration: NotionSyncConfiguration
     @State private var hasNotionToken: Bool
     @State private var isSyncingNotion = false
+    @State private var isNotionAutoSyncPausedForConflict = false
     @State private var pendingNotionAutoSyncTask: Task<Void, Never>?
     @State private var notionAutoSyncLoopTask: Task<Void, Never>?
 
@@ -118,6 +119,7 @@ struct RootView: View {
         }
         .onChange(of: notionConfiguration.isAutoSyncEnabled) { _, isEnabled in
             if isEnabled {
+                isNotionAutoSyncPausedForConflict = false
                 scheduleNotionAutoSync(after: Self.autoSyncActivationNanoseconds)
             } else {
                 pendingNotionAutoSyncTask?.cancel()
@@ -126,6 +128,7 @@ struct RootView: View {
         }
         .onChange(of: notionConfiguration.isEnabled) { _, isEnabled in
             if isEnabled {
+                isNotionAutoSyncPausedForConflict = false
                 scheduleNotionAutoSync(after: Self.autoSyncActivationNanoseconds)
             }
         }
@@ -367,6 +370,7 @@ struct RootView: View {
         do {
             try NotionSyncStateStore(rootURL: workspace.rootURL).save(updated)
             notionConfiguration = updated
+            isNotionAutoSyncPausedForConflict = false
             statusText = updated.lastStatus
         } catch {
             setNotionStatus("Notion settings save failed")
@@ -420,6 +424,7 @@ struct RootView: View {
     private func syncNotion() {
         pendingNotionAutoSyncTask?.cancel()
         pendingNotionAutoSyncTask = nil
+        isNotionAutoSyncPausedForConflict = false
         Task {
             await runNotionSync(isAutomatic: false)
         }
@@ -443,6 +448,7 @@ struct RootView: View {
             let configuration = try parsedNotionConfiguration()
             try NotionSyncStateStore(rootURL: workspace.rootURL).save(configuration)
             notionConfiguration = try await makeNotionEngine(token: token).setup(workspace: workspace)
+            isNotionAutoSyncPausedForConflict = false
             statusText = notionConfiguration.lastStatus
         } catch {
             setNotionStatus(Self.statusMessage(for: error))
@@ -469,10 +475,20 @@ struct RootView: View {
         do {
             saveCurrentDot()
             let token = try requireNotionToken()
-            let result = try await makeNotionEngine(token: token).sync(workspace: workspace)
+            let result = try await makeNotionEngine(token: token).sync(
+                workspace: workspace,
+                conflictResolution: isAutomatic ? .preserveLocal : .notionWins
+            )
             notionConfiguration = result.configuration
-            try reloadWorkspaceAfterSync()
-            statusText = result.configuration.lastStatus
+            try reloadWorkspaceAfterSync(
+                preservingSelectedText: isAutomatic && !result.pulledDotIDs.contains(selectedDotID)
+            )
+            if isAutomatic && !result.conflictedDotIDs.isEmpty {
+                isNotionAutoSyncPausedForConflict = true
+                setNotionStatus("Auto sync paused: \(result.conflictedDotIDs.count) conflicts. Use Sync Now.")
+            } else {
+                statusText = result.configuration.lastStatus
+            }
         } catch {
             setNotionStatus(Self.statusMessage(for: error))
         }
@@ -482,6 +498,7 @@ struct RootView: View {
         notionConfiguration.isEnabled
             && notionConfiguration.isAutoSyncEnabled
             && hasNotionToken
+            && !isNotionAutoSyncPausedForConflict
             && !notionConfiguration.parentPageID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
@@ -550,12 +567,19 @@ struct RootView: View {
         return token
     }
 
-    private func reloadWorkspaceAfterSync() throws {
+    private func reloadWorkspaceAfterSync(preservingSelectedText: Bool = false) throws {
+        let preservedDotID = selectedDotID
+        let preservedBodyText = bodyText
         workspace = try store.load()
         if !workspace.manifest.dots.contains(where: { $0.id == selectedDotID }) {
             selectedDotID = workspace.manifest.currentDotID
         }
-        bodyText = workspace.bodies[selectedDotID] ?? ""
+        if preservingSelectedText && selectedDotID == preservedDotID {
+            workspace.bodies[selectedDotID] = preservedBodyText
+            bodyText = preservedBodyText
+        } else {
+            bodyText = workspace.bodies[selectedDotID] ?? ""
+        }
         selectedTextRange = NSRange(location: 0, length: 0)
         viewMode = workspace.manifest.dots.first { $0.id == selectedDotID }?.preferredViewMode ?? .edit
         if let dot = workspace.manifest.dots.first(where: { $0.id == selectedDotID }) {
