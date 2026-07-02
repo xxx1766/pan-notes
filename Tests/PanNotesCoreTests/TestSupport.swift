@@ -1,8 +1,15 @@
 struct TestCase: Sendable {
     var name: String
-    var run: @Sendable () throws -> Void
+    var run: @Sendable () async throws -> Void
 
     init(_ name: String, _ run: @escaping @Sendable () throws -> Void) {
+        self.name = name
+        self.run = {
+            try run()
+        }
+    }
+
+    init(_ name: String, _ run: @escaping @Sendable () async throws -> Void) {
         self.name = name
         self.run = run
     }

@@ -4,6 +4,7 @@ let allTests: [TestCase] = manifestTests
     + conflictManagerTests
     + notionSyncStateTests
     + notionMarkdownConverterTests
+    + notionSyncEngineTests
     + markdownPreviewModelTests
     + textCommandProcessorTests
     + workspaceStartupLoaderTests
@@ -12,7 +13,7 @@ let allTests: [TestCase] = manifestTests
 var passed = 0
 for test in allTests {
     do {
-        try test.run()
+        try await test.run()
         passed += 1
     } catch {
         print("FAIL \(test.name): \(error)")
