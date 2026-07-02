@@ -98,6 +98,7 @@ struct RootView: View {
                         statusText = "Settings save failed"
                     }
                 },
+                onSetOpenAtLogin: setOpenAtLogin,
                 onSaveNotionConfiguration: saveNotionConfiguration,
                 onSaveNotionToken: saveNotionToken,
                 onSetupNotion: setupNotionPages,
@@ -105,6 +106,7 @@ struct RootView: View {
             )
         }
         .onAppear {
+            syncOpenAtLoginPreferenceFromSystem()
             startNotionAutoSyncLoop()
             scheduleNotionAutoSync(after: Self.autoSyncActivationNanoseconds)
         }
@@ -369,6 +371,27 @@ struct RootView: View {
         } catch {
             setNotionStatus("Notion settings save failed")
         }
+    }
+
+    private func setOpenAtLogin(_ isEnabled: Bool) {
+        do {
+            try LoginItemController.setEnabled(isEnabled)
+            workspace.manifest.preferences.openAtLogin = LoginItemController.isEnabled
+            try store.saveManifest(workspace.manifest)
+            statusText = LoginItemController.statusText
+        } catch {
+            workspace.manifest.preferences.openAtLogin = LoginItemController.isEnabled
+            statusText = "Open at login update failed"
+        }
+    }
+
+    private func syncOpenAtLoginPreferenceFromSystem() {
+        let isEnabled = LoginItemController.isEnabled
+        guard workspace.manifest.preferences.openAtLogin != isEnabled else {
+            return
+        }
+        workspace.manifest.preferences.openAtLogin = isEnabled
+        try? store.saveManifest(workspace.manifest)
     }
 
     @discardableResult

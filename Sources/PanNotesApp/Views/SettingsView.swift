@@ -11,6 +11,7 @@ struct SettingsView: View {
     let isSyncingNotion: Bool
     let onChooseFolder: () -> Void
     let onSaveManifest: (Manifest) -> Void
+    let onSetOpenAtLogin: (Bool) -> Void
     let onSaveNotionConfiguration: (NotionSyncConfiguration) -> Void
     let onSaveNotionToken: (String) -> Bool
     let onSetupNotion: () -> Void
@@ -130,6 +131,7 @@ struct SettingsView: View {
                     SettingsSection(title: "Window") {
                         Toggle("Hide Dock Icon", isOn: preferencesBinding(\.hideDockIcon))
                         Toggle("Close on Focus Loss", isOn: preferencesBinding(\.closeOnFocusLoss))
+                        Toggle("Open at Login", isOn: openAtLoginBinding)
 
                         Button {
                             NSApp.terminate(nil)
@@ -164,6 +166,15 @@ struct SettingsView: View {
             set: { value in
                 workspace.manifest.preferences[keyPath: keyPath] = value
                 onSaveManifest(workspace.manifest)
+            }
+        )
+    }
+
+    private var openAtLoginBinding: Binding<Bool> {
+        Binding(
+            get: { workspace.manifest.preferences.openAtLogin },
+            set: { value in
+                onSetOpenAtLogin(value)
             }
         )
     }

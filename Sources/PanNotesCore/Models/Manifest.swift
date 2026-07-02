@@ -68,6 +68,7 @@ public struct MarkdownRules: Codable, Equatable, Sendable {
 public struct AppPreferences: Codable, Equatable, Sendable {
     public var hideDockIcon: Bool
     public var closeOnFocusLoss: Bool
+    public var openAtLogin: Bool
     public var backupRetentionCount: Int
     public var autosaveDebounceMilliseconds: Int
     public var backupIntervalMinutes: Int
@@ -75,10 +76,56 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public static let defaults = AppPreferences(
         hideDockIcon: true,
         closeOnFocusLoss: true,
+        openAtLogin: false,
         backupRetentionCount: 100,
         autosaveDebounceMilliseconds: 500,
         backupIntervalMinutes: 60
     )
+
+    public init(
+        hideDockIcon: Bool,
+        closeOnFocusLoss: Bool,
+        openAtLogin: Bool = false,
+        backupRetentionCount: Int,
+        autosaveDebounceMilliseconds: Int,
+        backupIntervalMinutes: Int
+    ) {
+        self.hideDockIcon = hideDockIcon
+        self.closeOnFocusLoss = closeOnFocusLoss
+        self.openAtLogin = openAtLogin
+        self.backupRetentionCount = backupRetentionCount
+        self.autosaveDebounceMilliseconds = autosaveDebounceMilliseconds
+        self.backupIntervalMinutes = backupIntervalMinutes
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case hideDockIcon
+        case closeOnFocusLoss
+        case openAtLogin
+        case backupRetentionCount
+        case autosaveDebounceMilliseconds
+        case backupIntervalMinutes
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        hideDockIcon = try container.decode(Bool.self, forKey: .hideDockIcon)
+        closeOnFocusLoss = try container.decode(Bool.self, forKey: .closeOnFocusLoss)
+        openAtLogin = try container.decodeIfPresent(Bool.self, forKey: .openAtLogin) ?? false
+        backupRetentionCount = try container.decode(Int.self, forKey: .backupRetentionCount)
+        autosaveDebounceMilliseconds = try container.decode(Int.self, forKey: .autosaveDebounceMilliseconds)
+        backupIntervalMinutes = try container.decode(Int.self, forKey: .backupIntervalMinutes)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(hideDockIcon, forKey: .hideDockIcon)
+        try container.encode(closeOnFocusLoss, forKey: .closeOnFocusLoss)
+        try container.encode(openAtLogin, forKey: .openAtLogin)
+        try container.encode(backupRetentionCount, forKey: .backupRetentionCount)
+        try container.encode(autosaveDebounceMilliseconds, forKey: .autosaveDebounceMilliseconds)
+        try container.encode(backupIntervalMinutes, forKey: .backupIntervalMinutes)
+    }
 }
 
 public struct Manifest: Codable, Equatable, Sendable {
