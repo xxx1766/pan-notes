@@ -31,7 +31,7 @@ public enum NotionSyncError: Error, Equatable {
     case missingParentPageID
 }
 
-public final class NotionSyncEngine {
+public final class NotionSyncEngine: @unchecked Sendable {
     private let client: any NotionClient
     private let stateStore: NotionSyncStateStore
     private let dotStore: DotStore

@@ -12,6 +12,9 @@ struct RootView: View {
     @State private var store: DotStore
     @State private var fontSize: Double
     @State private var selectedTextRange = NSRange(location: 0, length: 0)
+    @State private var notionConfiguration: NotionSyncConfiguration
+    @State private var hasNotionToken: Bool
+    @State private var isSyncingNotion = false
 
     private let onSelectedDotChanged: @MainActor (Dot) -> Void
     private static let fontSizeDefaultsKey = "PanNotesFontSize"
@@ -35,6 +38,8 @@ struct RootView: View {
         self._viewMode = State(initialValue: workspace.manifest.dots.first?.preferredViewMode ?? .edit)
         self._store = State(initialValue: store)
         self._fontSize = State(initialValue: Self.savedFontSize())
+        self._notionConfiguration = State(initialValue: Self.loadNotionConfiguration(rootURL: workspace.rootURL))
+        self._hasNotionToken = State(initialValue: Self.hasSavedNotionToken())
         self.onSelectedDotChanged = onSelectedDotChanged
         self.onClose = onClose
     }
@@ -76,6 +81,8 @@ struct RootView: View {
         .sheet(isPresented: $showingSettings) {
             SettingsView(
                 workspace: $workspace,
+                notionConfiguration: $notionConfiguration,
+                hasNotionToken: hasNotionToken,
                 onChooseFolder: chooseFolder,
                 onSaveManifest: { manifest in
                     do {
@@ -84,7 +91,11 @@ struct RootView: View {
                     } catch {
                         statusText = "Settings save failed"
                     }
-                }
+                },
+                onSaveNotionConfiguration: saveNotionConfiguration,
+                onSaveNotionToken: saveNotionToken,
+                onSetupNotion: setupNotionPages,
+                onSyncNotion: syncNotion
             )
         }
     }
@@ -132,6 +143,15 @@ struct RootView: View {
             quickKeysMenu
 
             findMenu
+
+            Button {
+                syncNotion()
+            } label: {
+                Image(systemName: "arrow.triangle.2.circlepath")
+            }
+            .buttonStyle(PanelIconButtonStyle())
+            .disabled(isSyncingNotion)
+            .help("Sync Notion")
 
             HStack(spacing: 6) {
                 Image(systemName: "textformat.size")
@@ -278,6 +298,7 @@ struct RootView: View {
                 selectedTextRange = NSRange(location: 0, length: 0)
                 viewMode = workspace.manifest.dots.first { $0.id == selectedDotID }?.preferredViewMode ?? .edit
                 UserDefaults.standard.set(url.path, forKey: "PanNotesWorkspaceURL")
+                notionConfiguration = Self.loadNotionConfiguration(rootURL: workspace.rootURL)
                 if let dot = workspace.manifest.dots.first(where: { $0.id == selectedDotID }) {
                     onSelectedDotChanged(dot)
                 }
@@ -299,12 +320,171 @@ struct RootView: View {
         return (try store.load(), true)
     }
 
+    private func saveNotionConfiguration(_ configuration: NotionSyncConfiguration) {
+        var updated = configuration
+        updated.parentPageID = Self.normalizedNotionPageID(updated.parentPageID)
+        do {
+            try NotionSyncStateStore(rootURL: workspace.rootURL).save(updated)
+            notionConfiguration = updated
+            statusText = "Notion settings saved"
+        } catch {
+            statusText = "Notion settings save failed"
+        }
+    }
+
+    private func saveNotionToken(_ token: String) {
+        do {
+            try KeychainNotionTokenStore().saveToken(token)
+            hasNotionToken = Self.hasSavedNotionToken()
+            statusText = hasNotionToken ? "Notion token saved" : "Notion token cleared"
+        } catch {
+            statusText = "Notion token save failed"
+        }
+    }
+
+    private func setupNotionPages() {
+        Task {
+            await runNotionSetup()
+        }
+    }
+
+    private func syncNotion() {
+        Task {
+            await runNotionSync()
+        }
+    }
+
+    @MainActor
+    private func runNotionSetup() async {
+        guard !isSyncingNotion else {
+            return
+        }
+
+        isSyncingNotion = true
+        statusText = "Setting up Notion"
+        defer {
+            isSyncingNotion = false
+        }
+
+        do {
+            saveCurrentDot()
+            let token = try requireNotionToken()
+            var configuration = notionConfiguration
+            configuration.parentPageID = Self.normalizedNotionPageID(configuration.parentPageID)
+            try NotionSyncStateStore(rootURL: workspace.rootURL).save(configuration)
+            notionConfiguration = try await makeNotionEngine(token: token).setup(workspace: workspace)
+            statusText = notionConfiguration.lastStatus
+        } catch {
+            statusText = Self.statusMessage(for: error)
+        }
+    }
+
+    @MainActor
+    private func runNotionSync() async {
+        guard !isSyncingNotion else {
+            return
+        }
+
+        isSyncingNotion = true
+        statusText = "Syncing Notion"
+        defer {
+            isSyncingNotion = false
+        }
+
+        do {
+            saveCurrentDot()
+            let token = try requireNotionToken()
+            let result = try await makeNotionEngine(token: token).sync(workspace: workspace)
+            notionConfiguration = result.configuration
+            try reloadWorkspaceAfterSync()
+            statusText = result.configuration.lastStatus
+        } catch {
+            statusText = Self.statusMessage(for: error)
+        }
+    }
+
+    private func makeNotionEngine(token: String) -> NotionSyncEngine {
+        NotionSyncEngine(
+            client: NotionAPIClient(token: token),
+            stateStore: NotionSyncStateStore(rootURL: workspace.rootURL),
+            dotStore: store,
+            conflictManager: ConflictManager(rootURL: workspace.rootURL)
+        )
+    }
+
+    private func requireNotionToken() throws -> String {
+        guard let token = try KeychainNotionTokenStore().loadToken(), !token.isEmpty else {
+            throw NotionUIError.missingToken
+        }
+        return token
+    }
+
+    private func reloadWorkspaceAfterSync() throws {
+        workspace = try store.load()
+        if !workspace.manifest.dots.contains(where: { $0.id == selectedDotID }) {
+            selectedDotID = workspace.manifest.currentDotID
+        }
+        bodyText = workspace.bodies[selectedDotID] ?? ""
+        selectedTextRange = NSRange(location: 0, length: 0)
+        viewMode = workspace.manifest.dots.first { $0.id == selectedDotID }?.preferredViewMode ?? .edit
+        if let dot = workspace.manifest.dots.first(where: { $0.id == selectedDotID }) {
+            onSelectedDotChanged(dot)
+        }
+    }
+
     private static func savedFontSize() -> Double {
         let stored = UserDefaults.standard.double(forKey: fontSizeDefaultsKey)
         guard stored > 0 else {
             return defaultFontSize
         }
         return min(max(stored, fontSizeRange.lowerBound), fontSizeRange.upperBound)
+    }
+
+    private static func loadNotionConfiguration(rootURL: URL) -> NotionSyncConfiguration {
+        (try? NotionSyncStateStore(rootURL: rootURL).load()) ?? .disabled
+    }
+
+    private static func hasSavedNotionToken() -> Bool {
+        do {
+            return try KeychainNotionTokenStore().loadToken() != nil
+        } catch {
+            return false
+        }
+    }
+
+    private static func normalizedNotionPageID(_ input: String) -> String {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return ""
+        }
+
+        let pathCandidate = URL(string: trimmed)?.lastPathComponent ?? trimmed
+        let hexSet = CharacterSet(charactersIn: "0123456789abcdefABCDEF")
+        var runs: [String] = []
+        var current = ""
+        for scalar in pathCandidate.unicodeScalars {
+            if hexSet.contains(scalar) {
+                current.append(Character(scalar))
+            } else if !current.isEmpty {
+                runs.append(current)
+                current = ""
+            }
+        }
+        if !current.isEmpty {
+            runs.append(current)
+        }
+
+        if let candidate = runs.last(where: { $0.count >= 32 }) {
+            return String(candidate.suffix(32)).lowercased()
+        }
+        return trimmed
+    }
+
+    private static func statusMessage(for error: Error) -> String {
+        if let localizedError = error as? LocalizedError, let description = localizedError.errorDescription {
+            return description
+        }
+        return error.localizedDescription
     }
 
     private func togglePreviewTask(_ taskIndex: Int) {
@@ -363,6 +543,17 @@ struct RootView: View {
         formatter.timeStyle = .short
         return formatter
     }()
+}
+
+private enum NotionUIError: Error, LocalizedError {
+    case missingToken
+
+    var errorDescription: String? {
+        switch self {
+        case .missingToken:
+            "Save a Notion token first."
+        }
+    }
 }
 
 private struct PanelIconButtonStyle: ButtonStyle {

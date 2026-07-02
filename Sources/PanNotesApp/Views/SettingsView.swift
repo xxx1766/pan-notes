@@ -6,8 +6,16 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     @Binding var workspace: Workspace
+    @Binding var notionConfiguration: NotionSyncConfiguration
+    let hasNotionToken: Bool
     let onChooseFolder: () -> Void
     let onSaveManifest: (Manifest) -> Void
+    let onSaveNotionConfiguration: (NotionSyncConfiguration) -> Void
+    let onSaveNotionToken: (String) -> Void
+    let onSetupNotion: () -> Void
+    let onSyncNotion: () -> Void
+
+    @State private var notionToken = ""
 
     private let markdownColumns = [
         GridItem(.flexible(), spacing: 16),
@@ -55,6 +63,40 @@ struct SettingsView: View {
                             .frame(width: 220, height: 24)
                     }
 
+                    SettingsSection(title: "Notion Sync") {
+                        Toggle("Enable Notion Sync", isOn: notionEnabledBinding)
+
+                        HStack(spacing: 8) {
+                            SecureField("Integration token", text: $notionToken)
+                                .textFieldStyle(.roundedBorder)
+                            Button("Save Token") {
+                                onSaveNotionToken(notionToken)
+                                notionToken = ""
+                            }
+                            .disabled(notionToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+
+                        Text(hasNotionToken ? "Token saved in Keychain" : "No token saved")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        TextField("Parent page URL or ID", text: notionParentPageBinding)
+                            .textFieldStyle(.roundedBorder)
+
+                        HStack(spacing: 8) {
+                            Button("Setup Pages", action: onSetupNotion)
+                                .disabled(!canUseNotionActions)
+                            Button("Sync Now", action: onSyncNotion)
+                                .disabled(!canUseNotionActions)
+                        }
+                        .controlSize(.small)
+
+                        Text(notionConfiguration.lastStatus)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+
                     SettingsSection(title: "Markdown") {
                         LazyVGrid(columns: markdownColumns, alignment: .leading, spacing: 9) {
                             Toggle("Headings", isOn: binding(\.headings))
@@ -87,7 +129,7 @@ struct SettingsView: View {
                 .padding(.vertical, 12)
             }
         }
-        .frame(width: 420, height: 480)
+        .frame(width: 440, height: 620)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
@@ -109,6 +151,31 @@ struct SettingsView: View {
                 onSaveManifest(workspace.manifest)
             }
         )
+    }
+
+    private var notionEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { notionConfiguration.isEnabled },
+            set: { value in
+                notionConfiguration.isEnabled = value
+                onSaveNotionConfiguration(notionConfiguration)
+            }
+        )
+    }
+
+    private var notionParentPageBinding: Binding<String> {
+        Binding(
+            get: { notionConfiguration.parentPageID },
+            set: { value in
+                notionConfiguration.parentPageID = value
+                onSaveNotionConfiguration(notionConfiguration)
+            }
+        )
+    }
+
+    private var canUseNotionActions: Bool {
+        hasNotionToken
+            && !notionConfiguration.parentPageID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }
 
