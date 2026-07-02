@@ -66,6 +66,9 @@ struct SettingsView: View {
 
                     SettingsSection(title: "Notion Sync") {
                         Toggle("Enable Notion Sync", isOn: notionEnabledBinding)
+                        Toggle("Auto Sync", isOn: notionAutoSyncBinding)
+                            .disabled(!notionConfiguration.isEnabled)
+                            .help("Sync after edits and periodically while Pan Notes is running")
 
                         HStack(spacing: 8) {
                             SecureField("Integration token", text: $notionToken)
@@ -180,6 +183,16 @@ struct SettingsView: View {
             get: { notionConfiguration.parentPageInput },
             set: { value in
                 notionConfiguration.parentPageInput = value
+                onSaveNotionConfiguration(notionConfiguration)
+            }
+        )
+    }
+
+    private var notionAutoSyncBinding: Binding<Bool> {
+        Binding(
+            get: { notionConfiguration.isAutoSyncEnabled },
+            set: { value in
+                notionConfiguration.isAutoSyncEnabled = value
                 onSaveNotionConfiguration(notionConfiguration)
             }
         )

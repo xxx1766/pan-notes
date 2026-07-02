@@ -21,6 +21,7 @@ public struct NotionDotPageState: Codable, Equatable, Sendable {
 
 public struct NotionSyncConfiguration: Codable, Equatable, Sendable {
     public var isEnabled: Bool
+    public var isAutoSyncEnabled: Bool
     public var parentPageInput: String
     public var parentPageID: String
     public var dotPages: [String: NotionDotPageState]
@@ -28,12 +29,14 @@ public struct NotionSyncConfiguration: Codable, Equatable, Sendable {
 
     public init(
         isEnabled: Bool,
+        isAutoSyncEnabled: Bool = false,
         parentPageInput: String? = nil,
         parentPageID: String,
         dotPages: [String: NotionDotPageState],
         lastStatus: String
     ) {
         self.isEnabled = isEnabled
+        self.isAutoSyncEnabled = isAutoSyncEnabled
         self.parentPageInput = parentPageInput ?? parentPageID
         self.parentPageID = parentPageID
         self.dotPages = dotPages
@@ -42,6 +45,7 @@ public struct NotionSyncConfiguration: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case isEnabled
+        case isAutoSyncEnabled
         case parentPageInput
         case parentPageID
         case dotPages
@@ -51,6 +55,7 @@ public struct NotionSyncConfiguration: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
+        isAutoSyncEnabled = try container.decodeIfPresent(Bool.self, forKey: .isAutoSyncEnabled) ?? false
         parentPageID = try container.decode(String.self, forKey: .parentPageID)
         parentPageInput = try container.decodeIfPresent(String.self, forKey: .parentPageInput) ?? parentPageID
         dotPages = try container.decode([String: NotionDotPageState].self, forKey: .dotPages)
@@ -60,6 +65,7 @@ public struct NotionSyncConfiguration: Codable, Equatable, Sendable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(isEnabled, forKey: .isEnabled)
+        try container.encode(isAutoSyncEnabled, forKey: .isAutoSyncEnabled)
         try container.encode(parentPageInput, forKey: .parentPageInput)
         try container.encode(parentPageID, forKey: .parentPageID)
         try container.encode(dotPages, forKey: .dotPages)

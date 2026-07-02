@@ -9,7 +9,9 @@ let notionSyncStateTests: [TestCase] = [
     TestCase("notionSyncErrorsHaveUserFacingDescriptions", notionSyncErrorsHaveUserFacingDescriptions),
     TestCase("notionPageReferenceParsesAppNotionPageURL", notionPageReferenceParsesAppNotionPageURL),
     TestCase("notionSyncStatePreservesParentPageInput", notionSyncStatePreservesParentPageInput),
-    TestCase("notionSyncStateLoadsOldConfigurationWithoutParentPageInput", notionSyncStateLoadsOldConfigurationWithoutParentPageInput)
+    TestCase("notionSyncStatePreservesAutoSyncSetting", notionSyncStatePreservesAutoSyncSetting),
+    TestCase("notionSyncStateLoadsOldConfigurationWithoutParentPageInput", notionSyncStateLoadsOldConfigurationWithoutParentPageInput),
+    TestCase("notionSyncStateLoadsOldConfigurationWithoutAutoSyncSetting", notionSyncStateLoadsOldConfigurationWithoutAutoSyncSetting)
 ]
 
 private func notionSyncStateDefaultsWhenMissing() throws {
@@ -125,6 +127,23 @@ private func notionSyncStatePreservesParentPageInput() throws {
     try expect(loaded.parentPageID == configuration.parentPageID, "saved sync state keeps parsed parent page ID")
 }
 
+private func notionSyncStatePreservesAutoSyncSetting() throws {
+    let root = try notionSyncTemporaryDirectory()
+    let store = NotionSyncStateStore(rootURL: root)
+    let configuration = NotionSyncConfiguration(
+        isEnabled: true,
+        isAutoSyncEnabled: true,
+        parentPageID: "parent-page",
+        dotPages: [:],
+        lastStatus: "Ready"
+    )
+
+    try store.save(configuration)
+    let loaded = try store.load()
+
+    try expect(loaded.isAutoSyncEnabled, "saved sync state keeps auto sync enabled")
+}
+
 private func notionSyncStateLoadsOldConfigurationWithoutParentPageInput() throws {
     let root = try notionSyncTemporaryDirectory()
     let json = """
@@ -140,6 +159,23 @@ private func notionSyncStateLoadsOldConfigurationWithoutParentPageInput() throws
     let loaded = try NotionSyncStateStore(rootURL: root).load()
 
     try expect(loaded.parentPageInput == loaded.parentPageID, "old sync state uses parent page ID as input fallback")
+}
+
+private func notionSyncStateLoadsOldConfigurationWithoutAutoSyncSetting() throws {
+    let root = try notionSyncTemporaryDirectory()
+    let json = """
+    {
+      "isEnabled" : true,
+      "parentPageID" : "3915d21ca07080a48f3ee1dfc10c7baa",
+      "dotPages" : {},
+      "lastStatus" : "Ready"
+    }
+    """
+    try json.write(to: root.appending(path: "notion-sync.json"), atomically: true, encoding: .utf8)
+
+    let loaded = try NotionSyncStateStore(rootURL: root).load()
+
+    try expect(!loaded.isAutoSyncEnabled, "old sync state defaults auto sync to disabled")
 }
 
 private func notionSyncTemporaryDirectory() throws -> URL {

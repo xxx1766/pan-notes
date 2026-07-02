@@ -15,11 +15,16 @@ struct RootView: View {
     @State private var notionConfiguration: NotionSyncConfiguration
     @State private var hasNotionToken: Bool
     @State private var isSyncingNotion = false
+    @State private var pendingNotionAutoSyncTask: Task<Void, Never>?
+    @State private var notionAutoSyncLoopTask: Task<Void, Never>?
 
     private let onSelectedDotChanged: @MainActor (Dot) -> Void
     private static let fontSizeDefaultsKey = "PanNotesFontSize"
     private static let defaultFontSize = 16.0
     private static let fontSizeRange = 12.0...28.0
+    private static let autoSyncDebounceNanoseconds: UInt64 = 2_500_000_000
+    private static let autoSyncActivationNanoseconds: UInt64 = 1_000_000_000
+    private static let autoSyncPollNanoseconds: UInt64 = 300_000_000_000
     private let onClose: @MainActor () -> Void
 
     init(workspace: Workspace, store: DotStore) {
@@ -99,6 +104,29 @@ struct RootView: View {
                 onSyncNotion: syncNotion
             )
         }
+        .onAppear {
+            startNotionAutoSyncLoop()
+            scheduleNotionAutoSync(after: Self.autoSyncActivationNanoseconds)
+        }
+        .onDisappear {
+            stopNotionAutoSyncTasks()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            scheduleNotionAutoSync(after: Self.autoSyncActivationNanoseconds)
+        }
+        .onChange(of: notionConfiguration.isAutoSyncEnabled) { _, isEnabled in
+            if isEnabled {
+                scheduleNotionAutoSync(after: Self.autoSyncActivationNanoseconds)
+            } else {
+                pendingNotionAutoSyncTask?.cancel()
+                pendingNotionAutoSyncTask = nil
+            }
+        }
+        .onChange(of: notionConfiguration.isEnabled) { _, isEnabled in
+            if isEnabled {
+                scheduleNotionAutoSync(after: Self.autoSyncActivationNanoseconds)
+            }
+        }
     }
 
     private var editorSurface: some View {
@@ -107,6 +135,7 @@ struct RootView: View {
                 TextEditorRepresentable(text: $bodyText, selectedRange: $selectedTextRange, fontSize: fontSize)
                     .onChange(of: bodyText) { _, _ in
                         saveCurrentDot()
+                        scheduleNotionAutoSync(after: Self.autoSyncDebounceNanoseconds)
                     }
             } else {
                 MarkdownPreviewView(
@@ -366,8 +395,10 @@ struct RootView: View {
     }
 
     private func syncNotion() {
+        pendingNotionAutoSyncTask?.cancel()
+        pendingNotionAutoSyncTask = nil
         Task {
-            await runNotionSync()
+            await runNotionSync(isAutomatic: false)
         }
     }
 
@@ -396,13 +427,18 @@ struct RootView: View {
     }
 
     @MainActor
-    private func runNotionSync() async {
+    private func runNotionSync(isAutomatic: Bool = false) async {
+        if isAutomatic {
+            guard canRunNotionAutoSync else {
+                return
+            }
+        }
         guard !isSyncingNotion else {
             return
         }
 
         isSyncingNotion = true
-        setNotionStatus("Syncing Notion")
+        setNotionStatus(isAutomatic ? "Auto syncing Notion" : "Syncing Notion")
         defer {
             isSyncingNotion = false
         }
@@ -417,6 +453,49 @@ struct RootView: View {
         } catch {
             setNotionStatus(Self.statusMessage(for: error))
         }
+    }
+
+    private var canRunNotionAutoSync: Bool {
+        notionConfiguration.isEnabled
+            && notionConfiguration.isAutoSyncEnabled
+            && hasNotionToken
+            && !notionConfiguration.parentPageID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func scheduleNotionAutoSync(after delay: UInt64) {
+        guard canRunNotionAutoSync else {
+            return
+        }
+        pendingNotionAutoSyncTask?.cancel()
+        pendingNotionAutoSyncTask = Task {
+            try? await Task.sleep(nanoseconds: delay)
+            guard !Task.isCancelled else {
+                return
+            }
+            await runNotionSync(isAutomatic: true)
+        }
+    }
+
+    private func startNotionAutoSyncLoop() {
+        guard notionAutoSyncLoopTask == nil else {
+            return
+        }
+        notionAutoSyncLoopTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: Self.autoSyncPollNanoseconds)
+                guard !Task.isCancelled else {
+                    return
+                }
+                await runNotionSync(isAutomatic: true)
+            }
+        }
+    }
+
+    private func stopNotionAutoSyncTasks() {
+        pendingNotionAutoSyncTask?.cancel()
+        pendingNotionAutoSyncTask = nil
+        notionAutoSyncLoopTask?.cancel()
+        notionAutoSyncLoopTask = nil
     }
 
     private func setNotionStatus(_ message: String) {
