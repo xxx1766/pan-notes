@@ -150,10 +150,10 @@ final class NotionAPIClient: NotionClient {
     private func error(for statusCode: Int, data: Data) -> NotionAPIError {
         let message = responseMessage(from: data)
         switch statusCode {
-        case 401, 403:
+        case 401:
             return .authenticationFailed(message)
-        case 404:
-            return .missingAccess(message)
+        case 403, 404:
+            return .missingAccess(accessMessage(message))
         case 429:
             return .rateLimited(message)
         case 400:
@@ -161,6 +161,10 @@ final class NotionAPIClient: NotionClient {
         default:
             return .httpStatus(statusCode, message)
         }
+    }
+
+    private func accessMessage(_ message: String) -> String {
+        "\(message) In Notion, open the parent page, choose ... > Connections, add this integration, and confirm the integration has Read, Update, and Insert content capabilities."
     }
 
     private func responseMessage(from data: Data) -> String {

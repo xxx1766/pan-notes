@@ -21,20 +21,49 @@ public struct NotionDotPageState: Codable, Equatable, Sendable {
 
 public struct NotionSyncConfiguration: Codable, Equatable, Sendable {
     public var isEnabled: Bool
+    public var parentPageInput: String
     public var parentPageID: String
     public var dotPages: [String: NotionDotPageState]
     public var lastStatus: String
 
     public init(
         isEnabled: Bool,
+        parentPageInput: String? = nil,
         parentPageID: String,
         dotPages: [String: NotionDotPageState],
         lastStatus: String
     ) {
         self.isEnabled = isEnabled
+        self.parentPageInput = parentPageInput ?? parentPageID
         self.parentPageID = parentPageID
         self.dotPages = dotPages
         self.lastStatus = lastStatus
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case isEnabled
+        case parentPageInput
+        case parentPageID
+        case dotPages
+        case lastStatus
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
+        parentPageID = try container.decode(String.self, forKey: .parentPageID)
+        parentPageInput = try container.decodeIfPresent(String.self, forKey: .parentPageInput) ?? parentPageID
+        dotPages = try container.decode([String: NotionDotPageState].self, forKey: .dotPages)
+        lastStatus = try container.decode(String.self, forKey: .lastStatus)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(isEnabled, forKey: .isEnabled)
+        try container.encode(parentPageInput, forKey: .parentPageInput)
+        try container.encode(parentPageID, forKey: .parentPageID)
+        try container.encode(dotPages, forKey: .dotPages)
+        try container.encode(lastStatus, forKey: .lastStatus)
     }
 
     public static let disabled = NotionSyncConfiguration(
@@ -48,6 +77,71 @@ public struct NotionSyncConfiguration: Codable, Equatable, Sendable {
         var updated = self
         updated.lastStatus = status
         return updated
+    }
+}
+
+public struct NotionPageReference: Equatable, Sendable {
+    public var rawValue: String
+    public var pageID: String
+
+    public init(_ input: String) throws {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw NotionPageReferenceError.empty
+        }
+        guard let pageID = Self.normalizedPageID(from: trimmed) else {
+            throw NotionPageReferenceError.missingPageID
+        }
+        self.rawValue = trimmed
+        self.pageID = pageID
+    }
+
+    public static func normalizedPageID(from input: String) -> String? {
+        let source = searchableText(from: input)
+        if let dashed = lastMatch(
+            in: source,
+            pattern: #"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"#
+        ) {
+            return dashed.replacingOccurrences(of: "-", with: "").lowercased()
+        }
+        return lastMatch(in: source, pattern: #"[0-9a-fA-F]{32}"#)?.lowercased()
+    }
+
+    private static func searchableText(from input: String) -> String {
+        guard let components = URLComponents(string: input), components.host != nil else {
+            return input
+        }
+        return [components.path, components.fragment]
+            .compactMap { $0 }
+            .joined(separator: " ")
+    }
+
+    private static func lastMatch(in source: String, pattern: String) -> String? {
+        guard let expression = try? NSRegularExpression(pattern: pattern) else {
+            return nil
+        }
+        let range = NSRange(source.startIndex..<source.endIndex, in: source)
+        guard let match = expression.matches(in: source, range: range).last else {
+            return nil
+        }
+        guard let matchRange = Range(match.range, in: source) else {
+            return nil
+        }
+        return String(source[matchRange])
+    }
+}
+
+public enum NotionPageReferenceError: Error, LocalizedError {
+    case empty
+    case missingPageID
+
+    public var errorDescription: String? {
+        switch self {
+        case .empty:
+            "Enter a Notion parent page URL or ID."
+        case .missingPageID:
+            "Could not find a Notion page ID in that URL."
+        }
     }
 }
 

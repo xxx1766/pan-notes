@@ -323,8 +323,16 @@ struct RootView: View {
 
     private func saveNotionConfiguration(_ configuration: NotionSyncConfiguration) {
         var updated = configuration
-        updated.parentPageID = Self.normalizedNotionPageID(updated.parentPageID)
-        updated.lastStatus = "Notion settings saved"
+        updated.parentPageInput = updated.parentPageInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let parentPage = try NotionPageReference(updated.parentPageInput)
+            updated.parentPageInput = parentPage.rawValue
+            updated.parentPageID = parentPage.pageID
+            updated.lastStatus = "Notion parent page set"
+        } catch {
+            updated.parentPageID = ""
+            updated.lastStatus = Self.statusMessage(for: error)
+        }
         do {
             try NotionSyncStateStore(rootURL: workspace.rootURL).save(updated)
             notionConfiguration = updated
@@ -378,8 +386,7 @@ struct RootView: View {
         do {
             saveCurrentDot()
             let token = try requireNotionToken()
-            var configuration = notionConfiguration
-            configuration.parentPageID = Self.normalizedNotionPageID(configuration.parentPageID)
+            let configuration = try parsedNotionConfiguration()
             try NotionSyncStateStore(rootURL: workspace.rootURL).save(configuration)
             notionConfiguration = try await makeNotionEngine(token: token).setup(workspace: workspace)
             statusText = notionConfiguration.lastStatus
@@ -415,6 +422,14 @@ struct RootView: View {
     private func setNotionStatus(_ message: String) {
         statusText = message
         notionConfiguration = notionConfiguration.updatingLastStatus(message)
+    }
+
+    private func parsedNotionConfiguration() throws -> NotionSyncConfiguration {
+        let parentPage = try NotionPageReference(notionConfiguration.parentPageInput)
+        var configuration = notionConfiguration
+        configuration.parentPageInput = parentPage.rawValue
+        configuration.parentPageID = parentPage.pageID
+        return configuration
     }
 
     private func makeNotionEngine(token: String) -> NotionSyncEngine {
@@ -464,34 +479,6 @@ struct RootView: View {
         } catch {
             return false
         }
-    }
-
-    private static func normalizedNotionPageID(_ input: String) -> String {
-        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return ""
-        }
-
-        let pathCandidate = URL(string: trimmed)?.lastPathComponent ?? trimmed
-        let hexSet = CharacterSet(charactersIn: "0123456789abcdefABCDEF")
-        var runs: [String] = []
-        var current = ""
-        for scalar in pathCandidate.unicodeScalars {
-            if hexSet.contains(scalar) {
-                current.append(Character(scalar))
-            } else if !current.isEmpty {
-                runs.append(current)
-                current = ""
-            }
-        }
-        if !current.isEmpty {
-            runs.append(current)
-        }
-
-        if let candidate = runs.last(where: { $0.count >= 32 }) {
-            return String(candidate.suffix(32)).lowercased()
-        }
-        return trimmed
     }
 
     private static func statusMessage(for error: Error) -> String {

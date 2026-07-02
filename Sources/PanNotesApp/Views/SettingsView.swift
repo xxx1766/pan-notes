@@ -177,9 +177,9 @@ struct SettingsView: View {
 
     private var notionParentPageBinding: Binding<String> {
         Binding(
-            get: { notionConfiguration.parentPageID },
+            get: { notionConfiguration.parentPageInput },
             set: { value in
-                notionConfiguration.parentPageID = value
+                notionConfiguration.parentPageInput = value
                 onSaveNotionConfiguration(notionConfiguration)
             }
         )

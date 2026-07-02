@@ -6,7 +6,10 @@ let notionSyncStateTests: [TestCase] = [
     TestCase("notionSyncStateSavesAndLoadsConfiguration", notionSyncStateSavesAndLoadsConfiguration),
     TestCase("notionSyncStateDoesNotPersistToken", notionSyncStateDoesNotPersistToken),
     TestCase("notionSyncConfigurationStatusUpdatePreservesSyncSettings", notionSyncConfigurationStatusUpdatePreservesSyncSettings),
-    TestCase("notionSyncErrorsHaveUserFacingDescriptions", notionSyncErrorsHaveUserFacingDescriptions)
+    TestCase("notionSyncErrorsHaveUserFacingDescriptions", notionSyncErrorsHaveUserFacingDescriptions),
+    TestCase("notionPageReferenceParsesAppNotionPageURL", notionPageReferenceParsesAppNotionPageURL),
+    TestCase("notionSyncStatePreservesParentPageInput", notionSyncStatePreservesParentPageInput),
+    TestCase("notionSyncStateLoadsOldConfigurationWithoutParentPageInput", notionSyncStateLoadsOldConfigurationWithoutParentPageInput)
 ]
 
 private func notionSyncStateDefaultsWhenMissing() throws {
@@ -92,6 +95,51 @@ private func notionSyncErrorsHaveUserFacingDescriptions() throws {
         NotionSyncError.missingParentPageID.errorDescription == "Enter a Notion parent page URL or ID.",
         "missing parent page error tells user what to do"
     )
+}
+
+private func notionPageReferenceParsesAppNotionPageURL() throws {
+    let input = "https://app.notion.com/p/PanNotes-3915d21ca07080a48f3ee1dfc10c7baa"
+
+    let reference = try NotionPageReference(input)
+
+    try expect(reference.rawValue == input, "keeps pasted Notion URL")
+    try expect(reference.pageID == "3915d21ca07080a48f3ee1dfc10c7baa", "extracts 32 character page ID")
+}
+
+private func notionSyncStatePreservesParentPageInput() throws {
+    let root = try notionSyncTemporaryDirectory()
+    let store = NotionSyncStateStore(rootURL: root)
+    let input = "https://app.notion.com/p/PanNotes-3915d21ca07080a48f3ee1dfc10c7baa"
+    let configuration = NotionSyncConfiguration(
+        isEnabled: true,
+        parentPageInput: input,
+        parentPageID: "3915d21ca07080a48f3ee1dfc10c7baa",
+        dotPages: [:],
+        lastStatus: "Ready"
+    )
+
+    try store.save(configuration)
+    let loaded = try store.load()
+
+    try expect(loaded.parentPageInput == input, "saved sync state keeps original parent page input")
+    try expect(loaded.parentPageID == configuration.parentPageID, "saved sync state keeps parsed parent page ID")
+}
+
+private func notionSyncStateLoadsOldConfigurationWithoutParentPageInput() throws {
+    let root = try notionSyncTemporaryDirectory()
+    let json = """
+    {
+      "isEnabled" : true,
+      "parentPageID" : "3915d21ca07080a48f3ee1dfc10c7baa",
+      "dotPages" : {},
+      "lastStatus" : "Ready"
+    }
+    """
+    try json.write(to: root.appending(path: "notion-sync.json"), atomically: true, encoding: .utf8)
+
+    let loaded = try NotionSyncStateStore(rootURL: root).load()
+
+    try expect(loaded.parentPageInput == loaded.parentPageID, "old sync state uses parent page ID as input fallback")
 }
 
 private func notionSyncTemporaryDirectory() throws -> URL {
