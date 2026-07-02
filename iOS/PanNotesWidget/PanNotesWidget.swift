@@ -1,4 +1,3 @@
-import PanNotesCore
 import SwiftUI
 import WidgetKit
 

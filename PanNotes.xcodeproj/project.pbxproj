@@ -13,12 +13,20 @@
 		100000000000000000000104 /* FolderPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000004 /* FolderPicker.swift */; };
 		100000000000000000000105 /* MobileRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000005 /* MobileRootView.swift */; };
 		100000000000000000000106 /* PanNotesSharedAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000006 /* PanNotesSharedAssets.xcassets */; };
-		100000000000000000000107 /* PanNotesCore in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000301 /* PanNotesCore */; };
 		100000000000000000000108 /* PanNotesWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 100000000000000000000202 /* PanNotesWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		100000000000000000000201 /* PanNotesMobileConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000001 /* PanNotesMobileConstants.swift */; };
-		100000000000000000000202 /* PanNotesWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000201 /* PanNotesWidgetBundle.swift */; };
-		100000000000000000000203 /* PanNotesWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000203 /* PanNotesWidget.swift */; };
-		100000000000000000000204 /* PanNotesCore in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000302 /* PanNotesCore */; };
+		100000000000000000000141 /* Manifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000041 /* Manifest.swift */; };
+		100000000000000000000142 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000042 /* Theme.swift */; };
+		100000000000000000000143 /* AtomicFileWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000043 /* AtomicFileWriter.swift */; };
+		100000000000000000000144 /* DotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000044 /* DotStore.swift */; };
+		100000000000000000000145 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000045 /* WidgetSnapshot.swift */; };
+		100000000000000000000231 /* PanNotesMobileConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000001 /* PanNotesMobileConstants.swift */; };
+		100000000000000000000232 /* PanNotesWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000201 /* PanNotesWidgetBundle.swift */; };
+		100000000000000000000233 /* PanNotesWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000203 /* PanNotesWidget.swift */; };
+		100000000000000000000241 /* Manifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000041 /* Manifest.swift */; };
+		100000000000000000000242 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000042 /* Theme.swift */; };
+		100000000000000000000243 /* AtomicFileWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000043 /* AtomicFileWriter.swift */; };
+		100000000000000000000244 /* DotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000044 /* DotStore.swift */; };
+		100000000000000000000245 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000045 /* WidgetSnapshot.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -55,6 +63,11 @@
 		100000000000000000000007 /* PanNotesiOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PanNotesiOS.entitlements; sourceTree = "<group>"; };
 		100000000000000000000008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		100000000000000000000009 /* Pan Notes.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Pan Notes.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		100000000000000000000041 /* Manifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/PanNotesCore/Models/Manifest.swift; sourceTree = "<group>"; };
+		100000000000000000000042 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/PanNotesCore/Models/Theme.swift; sourceTree = "<group>"; };
+		100000000000000000000043 /* AtomicFileWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/PanNotesCore/Storage/AtomicFileWriter.swift; sourceTree = "<group>"; };
+		100000000000000000000044 /* DotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/PanNotesCore/Storage/DotStore.swift; sourceTree = "<group>"; };
+		100000000000000000000045 /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/PanNotesCore/Widget/WidgetSnapshot.swift; sourceTree = "<group>"; };
 		100000000000000000000201 /* PanNotesWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanNotesWidgetBundle.swift; sourceTree = "<group>"; };
 		100000000000000000000203 /* PanNotesWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanNotesWidget.swift; sourceTree = "<group>"; };
 		100000000000000000000204 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -67,7 +80,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				100000000000000000000107 /* PanNotesCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -75,7 +87,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				100000000000000000000204 /* PanNotesCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,6 +96,7 @@
 		100000000000000000000020 = {
 			isa = PBXGroup;
 			children = (
+				100000000000000000000040 /* PanNotesCore */,
 				100000000000000000000030 /* iOS */,
 				100000000000000000000021 /* Products */,
 			);
@@ -108,6 +120,18 @@
 				100000000000000000000006 /* PanNotesSharedAssets.xcassets */,
 			);
 			path = iOS;
+			sourceTree = "<group>";
+		};
+		100000000000000000000040 /* PanNotesCore */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000041 /* Manifest.swift */,
+				100000000000000000000042 /* Theme.swift */,
+				100000000000000000000043 /* AtomicFileWriter.swift */,
+				100000000000000000000044 /* DotStore.swift */,
+				100000000000000000000045 /* WidgetSnapshot.swift */,
+			);
+			name = PanNotesCore;
 			sourceTree = "<group>";
 		};
 		100000000000000000000031 /* PanNotesiOS */ = {
@@ -161,7 +185,6 @@
 			);
 			name = PanNotesiOS;
 			packageProductDependencies = (
-				100000000000000000000301 /* PanNotesCore */,
 			);
 			productName = PanNotesiOS;
 			productReference = 100000000000000000000009 /* Pan Notes.app */;
@@ -181,7 +204,6 @@
 			);
 			name = PanNotesWidget;
 			packageProductDependencies = (
-				100000000000000000000302 /* PanNotesCore */,
 			);
 			productName = PanNotesWidget;
 			productReference = 100000000000000000000202 /* PanNotesWidget.appex */;
@@ -215,7 +237,6 @@
 			);
 			mainGroup = 100000000000000000000020;
 			packageReferences = (
-				100000000000000000000300 /* XCLocalSwiftPackageReference "." */,
 			);
 			productRefGroup = 100000000000000000000021 /* Products */;
 			projectDirPath = "";
@@ -250,6 +271,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				100000000000000000000141 /* Manifest.swift in Sources */,
+				100000000000000000000142 /* Theme.swift in Sources */,
+				100000000000000000000143 /* AtomicFileWriter.swift in Sources */,
+				100000000000000000000144 /* DotStore.swift in Sources */,
+				100000000000000000000145 /* WidgetSnapshot.swift in Sources */,
 				100000000000000000000101 /* PanNotesMobileConstants.swift in Sources */,
 				100000000000000000000102 /* PanNotesiOSApp.swift in Sources */,
 				100000000000000000000103 /* MobileWorkspaceModel.swift in Sources */,
@@ -262,9 +288,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				100000000000000000000201 /* PanNotesMobileConstants.swift in Sources */,
-				100000000000000000000202 /* PanNotesWidgetBundle.swift in Sources */,
-				100000000000000000000203 /* PanNotesWidget.swift in Sources */,
+				100000000000000000000241 /* Manifest.swift in Sources */,
+				100000000000000000000242 /* Theme.swift in Sources */,
+				100000000000000000000243 /* AtomicFileWriter.swift in Sources */,
+				100000000000000000000244 /* DotStore.swift in Sources */,
+				100000000000000000000245 /* WidgetSnapshot.swift in Sources */,
+				100000000000000000000231 /* PanNotesMobileConstants.swift in Sources */,
+				100000000000000000000232 /* PanNotesWidgetBundle.swift in Sources */,
+				100000000000000000000233 /* PanNotesWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -512,25 +543,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		100000000000000000000300 /* XCLocalSwiftPackageReference "." */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = .;
-		};
-/* End XCLocalSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		100000000000000000000301 /* PanNotesCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 100000000000000000000300 /* XCLocalSwiftPackageReference "." */;
-			productName = PanNotesCore;
-		};
-		100000000000000000000302 /* PanNotesCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 100000000000000000000300 /* XCLocalSwiftPackageReference "." */;
-			productName = PanNotesCore;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 100000000000000000000010 /* Project object */;
 }

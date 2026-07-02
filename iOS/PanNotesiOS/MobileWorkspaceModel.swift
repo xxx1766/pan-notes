@@ -1,5 +1,4 @@
 import Foundation
-import PanNotesCore
 import SwiftUI
 import WidgetKit
 
@@ -56,7 +55,7 @@ final class MobileWorkspaceModel: ObservableObject {
             var isStale = false
             let url = try URL(
                 resolvingBookmarkData: bookmark,
-                options: [.withSecurityScope],
+                options: [],
                 relativeTo: nil,
                 bookmarkDataIsStale: &isStale
             )
@@ -125,7 +124,7 @@ final class MobileWorkspaceModel: ObservableObject {
 
     private func saveBookmark(for url: URL) throws {
         let data = try url.bookmarkData(
-            options: [.withSecurityScope],
+            options: [],
             includingResourceValuesForKeys: nil,
             relativeTo: nil
         )

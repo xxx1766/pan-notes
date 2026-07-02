@@ -1,4 +1,3 @@
-import PanNotesCore
 import SwiftUI
 
 struct MobileRootView: View {
