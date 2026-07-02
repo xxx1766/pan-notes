@@ -26,9 +26,18 @@ public struct NotionSyncResult: Equatable, Sendable {
     }
 }
 
-public enum NotionSyncError: Error, Equatable {
+public enum NotionSyncError: Error, Equatable, LocalizedError {
     case disabled
     case missingParentPageID
+
+    public var errorDescription: String? {
+        switch self {
+        case .disabled:
+            "Run Notion setup before syncing."
+        case .missingParentPageID:
+            "Enter a Notion parent page URL or ID."
+        }
+    }
 }
 
 public final class NotionSyncEngine: @unchecked Sendable {

@@ -7,11 +7,12 @@ struct SettingsView: View {
 
     @Binding var workspace: Workspace
     @Binding var notionConfiguration: NotionSyncConfiguration
-    let hasNotionToken: Bool
+    @Binding var hasNotionToken: Bool
+    let isSyncingNotion: Bool
     let onChooseFolder: () -> Void
     let onSaveManifest: (Manifest) -> Void
     let onSaveNotionConfiguration: (NotionSyncConfiguration) -> Void
-    let onSaveNotionToken: (String) -> Void
+    let onSaveNotionToken: (String) -> Bool
     let onSetupNotion: () -> Void
     let onSyncNotion: () -> Void
 
@@ -69,14 +70,15 @@ struct SettingsView: View {
                         HStack(spacing: 8) {
                             SecureField("Integration token", text: $notionToken)
                                 .textFieldStyle(.roundedBorder)
-                            Button("Save Token") {
-                                onSaveNotionToken(notionToken)
-                                notionToken = ""
+                            Button(hasNotionToken ? "Replace Token" : "Save Token") {
+                                if onSaveNotionToken(notionToken) {
+                                    notionToken = ""
+                                }
                             }
                             .disabled(notionToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
 
-                        Text(hasNotionToken ? "Token saved in Keychain" : "No token saved")
+                        Text(hasNotionToken ? "Token saved in Keychain. Input clears after saving." : "No token saved")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -85,16 +87,26 @@ struct SettingsView: View {
 
                         HStack(spacing: 8) {
                             Button("Setup Pages", action: onSetupNotion)
-                                .disabled(!canUseNotionActions)
+                                .disabled(!canUseNotionActions || isSyncingNotion)
                             Button("Sync Now", action: onSyncNotion)
-                                .disabled(!canUseNotionActions)
+                                .disabled(!canUseNotionActions || isSyncingNotion)
                         }
                         .controlSize(.small)
+
+                        if isSyncingNotion {
+                            HStack(spacing: 6) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text("Working with Notion")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
 
                         Text(notionConfiguration.lastStatus)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .lineLimit(2)
+                            .lineLimit(3)
                     }
 
                     SettingsSection(title: "Markdown") {

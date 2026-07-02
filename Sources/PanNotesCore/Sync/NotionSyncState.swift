@@ -43,6 +43,12 @@ public struct NotionSyncConfiguration: Codable, Equatable, Sendable {
         dotPages: [:],
         lastStatus: "Notion sync disabled"
     )
+
+    public func updatingLastStatus(_ status: String) -> NotionSyncConfiguration {
+        var updated = self
+        updated.lastStatus = status
+        return updated
+    }
 }
 
 public final class NotionSyncStateStore {

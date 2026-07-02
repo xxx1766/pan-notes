@@ -82,7 +82,8 @@ struct RootView: View {
             SettingsView(
                 workspace: $workspace,
                 notionConfiguration: $notionConfiguration,
-                hasNotionToken: hasNotionToken,
+                hasNotionToken: $hasNotionToken,
+                isSyncingNotion: isSyncingNotion,
                 onChooseFolder: chooseFolder,
                 onSaveManifest: { manifest in
                     do {
@@ -323,22 +324,30 @@ struct RootView: View {
     private func saveNotionConfiguration(_ configuration: NotionSyncConfiguration) {
         var updated = configuration
         updated.parentPageID = Self.normalizedNotionPageID(updated.parentPageID)
+        updated.lastStatus = "Notion settings saved"
         do {
             try NotionSyncStateStore(rootURL: workspace.rootURL).save(updated)
             notionConfiguration = updated
-            statusText = "Notion settings saved"
+            statusText = updated.lastStatus
         } catch {
-            statusText = "Notion settings save failed"
+            setNotionStatus("Notion settings save failed")
         }
     }
 
-    private func saveNotionToken(_ token: String) {
+    @discardableResult
+    private func saveNotionToken(_ token: String) -> Bool {
         do {
             try KeychainNotionTokenStore().saveToken(token)
             hasNotionToken = Self.hasSavedNotionToken()
-            statusText = hasNotionToken ? "Notion token saved" : "Notion token cleared"
+            setNotionStatus(
+                hasNotionToken
+                    ? "Notion token saved in Keychain. Input cleared for safety."
+                    : "Notion token cleared"
+            )
+            return true
         } catch {
-            statusText = "Notion token save failed"
+            setNotionStatus(Self.statusMessage(for: error))
+            return false
         }
     }
 
@@ -361,7 +370,7 @@ struct RootView: View {
         }
 
         isSyncingNotion = true
-        statusText = "Setting up Notion"
+        setNotionStatus("Setting up Notion pages")
         defer {
             isSyncingNotion = false
         }
@@ -375,7 +384,7 @@ struct RootView: View {
             notionConfiguration = try await makeNotionEngine(token: token).setup(workspace: workspace)
             statusText = notionConfiguration.lastStatus
         } catch {
-            statusText = Self.statusMessage(for: error)
+            setNotionStatus(Self.statusMessage(for: error))
         }
     }
 
@@ -386,7 +395,7 @@ struct RootView: View {
         }
 
         isSyncingNotion = true
-        statusText = "Syncing Notion"
+        setNotionStatus("Syncing Notion")
         defer {
             isSyncingNotion = false
         }
@@ -399,8 +408,13 @@ struct RootView: View {
             try reloadWorkspaceAfterSync()
             statusText = result.configuration.lastStatus
         } catch {
-            statusText = Self.statusMessage(for: error)
+            setNotionStatus(Self.statusMessage(for: error))
         }
+    }
+
+    private func setNotionStatus(_ message: String) {
+        statusText = message
+        notionConfiguration = notionConfiguration.updatingLastStatus(message)
     }
 
     private func makeNotionEngine(token: String) -> NotionSyncEngine {
