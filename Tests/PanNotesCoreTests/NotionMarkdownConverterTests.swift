@@ -3,7 +3,8 @@ import PanNotesCore
 let notionMarkdownConverterTests: [TestCase] = [
     TestCase("notionMarkdownConverterAddsMarkersAndSupportedBlocks", notionMarkdownConverterAddsMarkersAndSupportedBlocks),
     TestCase("notionMarkdownConverterRendersSupportedBlocksToMarkdown", notionMarkdownConverterRendersSupportedBlocksToMarkdown),
-    TestCase("notionMarkdownConverterExtractsManagedMarkerRange", notionMarkdownConverterExtractsManagedMarkerRange)
+    TestCase("notionMarkdownConverterExtractsManagedMarkerRange", notionMarkdownConverterExtractsManagedMarkerRange),
+    TestCase("notionMarkdownConverterReturnsManagedBlockIDsIncludingMarkers", notionMarkdownConverterReturnsManagedBlockIDsIncludingMarkers)
 ]
 
 private func notionMarkdownConverterAddsMarkersAndSupportedBlocks() throws {
@@ -96,4 +97,18 @@ private func notionMarkdownConverterExtractsManagedMarkerRange() throws {
     let managed = NotionMarkdownConverter.managedBlocks(in: blocks, dotID: "002")
 
     try expect(managed == [.paragraph("Managed")], "managed range excludes outside blocks and markers")
+}
+
+private func notionMarkdownConverterReturnsManagedBlockIDsIncludingMarkers() throws {
+    let blocks: [NotionBlock] = [
+        .paragraph("Outside before", id: "outside-before"),
+        .paragraph("<!-- pan-notes:start dot=002 -->", id: "start"),
+        .paragraph("Managed", id: "managed"),
+        .paragraph("<!-- pan-notes:end dot=002 -->", id: "end"),
+        .paragraph("Outside after", id: "outside-after")
+    ]
+
+    let ids = NotionMarkdownConverter.managedBlockIDs(in: blocks, dotID: "002")
+
+    try expect(ids == ["start", "managed", "end"], "managed deletion includes markers and managed content")
 }

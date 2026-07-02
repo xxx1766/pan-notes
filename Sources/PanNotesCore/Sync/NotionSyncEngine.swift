@@ -3,7 +3,8 @@ import Foundation
 public protocol NotionClient: Sendable {
     func ensureDotPage(parentPageID: String, dot: Dot, existingPageID: String?) async throws -> String
     func fetchBlocks(pageID: String) async throws -> [NotionBlock]
-    func replaceManagedBlocks(pageID: String, dotID: String, blocks: [NotionBlock]) async throws
+    func appendBlocks(pageID: String, blocks: [NotionBlock]) async throws
+    func deleteBlock(blockID: String) async throws
     func updatePageTitle(pageID: String, title: String) async throws
 }
 
@@ -117,9 +118,10 @@ public final class NotionSyncEngine: @unchecked Sendable {
                 pageState = pageState.synced(localHash: remoteHash, notionHash: remoteHash, at: now())
                 conflictedDotIDs.append(dot.id)
             } else if localChanged {
-                try await client.replaceManagedBlocks(
+                try await replaceManagedBlocks(
                     pageID: pageID,
                     dotID: dot.id,
+                    existingBlocks: remoteBlocks,
                     blocks: NotionMarkdownConverter.blocks(from: localText, dotID: dot.id)
                 )
                 pageState = pageState.synced(localHash: localHash, notionHash: localHash, at: now())
@@ -147,6 +149,21 @@ public final class NotionSyncEngine: @unchecked Sendable {
             pulledDotIDs: pulledDotIDs,
             conflictedDotIDs: conflictedDotIDs
         )
+    }
+
+    private func replaceManagedBlocks(
+        pageID: String,
+        dotID: String,
+        existingBlocks: [NotionBlock],
+        blocks: [NotionBlock]
+    ) async throws {
+        for blockID in NotionMarkdownConverter.managedBlockIDs(in: existingBlocks, dotID: dotID) {
+            try await client.deleteBlock(blockID: blockID)
+        }
+        guard !blocks.isEmpty else {
+            return
+        }
+        try await client.appendBlocks(pageID: pageID, blocks: blocks)
     }
 
     private func pageState(

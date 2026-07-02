@@ -27,6 +27,18 @@ public enum NotionMarkdownConverter {
         return Array(blocks[(startIndex + 1)..<endIndex])
     }
 
+    public static func managedBlockIDs(in blocks: [NotionBlock], dotID: String) -> [String] {
+        guard
+            let startIndex = blocks.firstIndex(where: { isMarker($0, text: startMarker(dotID: dotID)) }),
+            let endIndex = blocks[(startIndex + 1)...].firstIndex(where: { isMarker($0, text: endMarker(dotID: dotID)) }),
+            startIndex < endIndex
+        else {
+            return []
+        }
+
+        return blocks[startIndex...endIndex].compactMap(\.id)
+    }
+
     public static func markdown(from blocks: [NotionBlock]) -> String {
         blocks.compactMap(markdownBlock(from:))
             .filter { !$0.isEmpty }

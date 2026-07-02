@@ -3,6 +3,7 @@ import PanNotesCore
 
 let notionSyncEngineTests: [TestCase] = [
     TestCase("notionSyncEnginePushesLocalOnlyChanges", notionSyncEnginePushesLocalOnlyChanges),
+    TestCase("notionSyncEngineDeletesManagedBlocksBeforeAppendingPush", notionSyncEngineDeletesManagedBlocksBeforeAppendingPush),
     TestCase("notionSyncEnginePullsNotionOnlyChanges", notionSyncEnginePullsNotionOnlyChanges),
     TestCase("notionSyncEngineWritesConflictWhenBothSidesChanged", notionSyncEngineWritesConflictWhenBothSidesChanged),
     TestCase("notionSyncEngineSetupReusesExistingPageMappings", notionSyncEngineSetupReusesExistingPageMappings)
@@ -31,6 +32,41 @@ private func notionSyncEnginePushesLocalOnlyChanges() async throws {
 
     try expect(result.pushedDotIDs == ["001"], "local-only change is pushed")
     try expect(pushedMarkdown == "# Local", "remote page receives local markdown")
+}
+
+private func notionSyncEngineDeletesManagedBlocksBeforeAppendingPush() async throws {
+    let root = try notionSyncEngineTemporaryDirectory()
+    let store = DotStore(rootURL: root)
+    var workspace = try store.bootstrap(dotCount: 1)
+    try store.saveDot(id: "001", body: "New local", in: workspace)
+    workspace = try store.load()
+    try makeConfiguredState(root: root, dotID: "001", pageID: "page-001", local: "Old remote", notion: "Old remote")
+    let client = FakeNotionClient(pageBlocks: [
+        "page-001": [
+            .paragraph("Outside before", id: "outside-before"),
+            .paragraph("<!-- pan-notes:start dot=001 -->", id: "start"),
+            .paragraph("Old remote", id: "old"),
+            .paragraph("<!-- pan-notes:end dot=001 -->", id: "end"),
+            .paragraph("Outside after", id: "outside-after")
+        ]
+    ])
+    let engine = NotionSyncEngine(
+        client: client,
+        stateStore: NotionSyncStateStore(rootURL: root),
+        dotStore: store,
+        conflictManager: ConflictManager(rootURL: root),
+        now: { Date(timeIntervalSince1970: 2_000) }
+    )
+
+    let result = try await engine.sync(workspace: workspace)
+    let remainingIDs = client.pageBlocks["page-001"]?.compactMap(\.id) ?? []
+    let pushedMarkdown = NotionMarkdownConverter.markdown(from: client.pageBlocks["page-001"] ?? [])
+
+    try expect(result.pushedDotIDs == ["001"], "local-only change is pushed")
+    try expect(client.deletedBlockIDs == ["start", "old", "end"], "old managed blocks are deleted with the block delete endpoint")
+    try expect(remainingIDs.contains("outside-before"), "outside block before managed range is preserved")
+    try expect(remainingIDs.contains("outside-after"), "outside block after managed range is preserved")
+    try expect(pushedMarkdown.contains("New local"), "new managed content is appended")
 }
 
 private func notionSyncEnginePullsNotionOnlyChanges() async throws {
@@ -112,6 +148,7 @@ private func notionSyncEngineSetupReusesExistingPageMappings() async throws {
 private final class FakeNotionClient: NotionClient, @unchecked Sendable {
     var pageBlocks: [String: [NotionBlock]]
     var createdPageIDs: [String] = []
+    var deletedBlockIDs: [String] = []
 
     init(pageBlocks: [String: [NotionBlock]]) {
         self.pageBlocks = pageBlocks
@@ -135,8 +172,15 @@ private final class FakeNotionClient: NotionClient, @unchecked Sendable {
         pageBlocks[pageID] ?? []
     }
 
-    func replaceManagedBlocks(pageID: String, dotID: String, blocks: [NotionBlock]) async throws {
-        pageBlocks[pageID] = blocks
+    func appendBlocks(pageID: String, blocks: [NotionBlock]) async throws {
+        pageBlocks[pageID, default: []].append(contentsOf: blocks)
+    }
+
+    func deleteBlock(blockID: String) async throws {
+        deletedBlockIDs.append(blockID)
+        for pageID in pageBlocks.keys {
+            pageBlocks[pageID]?.removeAll { $0.id == blockID }
+        }
     }
 
     func updatePageTitle(pageID: String, title: String) async throws {}

@@ -87,13 +87,7 @@ final class NotionAPIClient: NotionClient {
         return blocks
     }
 
-    func replaceManagedBlocks(pageID: String, dotID: String, blocks: [NotionBlock]) async throws {
-        let existing = try await fetchBlocks(pageID: pageID)
-        let archiveIDs = managedArchiveIDs(in: existing, dotID: dotID)
-        for blockID in archiveIDs {
-            _ = try await requestJSON(path: "/blocks/\(blockID)", method: "PATCH", body: ["archived": true])
-        }
-
+    func appendBlocks(pageID: String, blocks: [NotionBlock]) async throws {
         guard !blocks.isEmpty else {
             return
         }
@@ -102,6 +96,10 @@ final class NotionAPIClient: NotionClient {
             method: "PATCH",
             body: ["children": blocks.map(blockPayload)]
         )
+    }
+
+    func deleteBlock(blockID: String) async throws {
+        _ = try await requestJSON(path: "/blocks/\(blockID)", method: "DELETE")
     }
 
     func updatePageTitle(pageID: String, title: String) async throws {
@@ -227,25 +225,6 @@ final class NotionAPIClient: NotionClient {
             return ""
         }
         return richText.compactMap { $0["plain_text"] as? String }.joined()
-    }
-
-    private func managedArchiveIDs(in blocks: [NotionBlock], dotID: String) -> [String] {
-        guard
-            let startIndex = blocks.firstIndex(where: { isMarker($0, text: NotionMarkdownConverter.startMarker(dotID: dotID)) }),
-            let endIndex = blocks[(startIndex + 1)...].firstIndex(where: { isMarker($0, text: NotionMarkdownConverter.endMarker(dotID: dotID)) }),
-            startIndex < endIndex
-        else {
-            return []
-        }
-
-        return blocks[startIndex...endIndex].compactMap(\.id)
-    }
-
-    private func isMarker(_ block: NotionBlock, text: String) -> Bool {
-        guard case .paragraph(let blockText) = block.kind else {
-            return false
-        }
-        return blockText == text
     }
 
     private func titleProperties(_ title: String) -> [String: Any] {
