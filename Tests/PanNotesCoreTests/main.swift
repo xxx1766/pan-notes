@@ -3,6 +3,7 @@ let allTests: [TestCase] = manifestTests
     + backupServiceTests
     + conflictManagerTests
     + notionSyncStateTests
+    + notionMarkdownConverterTests
     + markdownPreviewModelTests
     + textCommandProcessorTests
     + workspaceStartupLoaderTests
